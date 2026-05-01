@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>eu.exeris.platform</groupId>
+        <artifactId>exeris-platform-parent</artifactId>
+        <version>0.1.0-SNAPSHOT</version>
+        <relativePath>../exeris-platform-parent</relativePath>
+    </parent>
+
+    <artifactId>exeris-studio-backend</artifactId>
+    <packaging>jar</packaging>
+
+    <name>Exeris Platform :: Studio Backend</name>
+    <description>
+        Backend service hosting Studio: project workspace management, on-disk
+        @ExerisDomain source tracking, and a thin REST/HTTP surface consumed by
+        the Studio frontend. Real edit operations flow through exeris-platform-lsp
+        which maintains DomainMetadata as the canonical model — Studio backend
+        does NOT host its own EntityDefinition metamodel.
+    </description>
+
+    <dependencies>
+        <dependency>
+            <groupId>eu.exeris</groupId>
+            <artifactId>exeris-sdk-source-model</artifactId>
+        </dependency>
+    </dependencies>
+</project>
