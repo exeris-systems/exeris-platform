@@ -25,7 +25,7 @@ This file tracks scope per milestone. Items marked `[ ]` are open; `[x]` shipped
 
 - [ ] **CI** — `.github/workflows/build.yml` (clones SDK + tooling, installs both, then `mvn install` + `npm run build` in parallel jobs)
 - [ ] **`exeris-platform-lsp` skeleton** — LSP4J server, JSON-RPC over stdio, `initialize`/`shutdown` handlers, no Exeris-specific methods yet
-- [ ] **Pre-publish POM metadata** — `<scm>`, `<url>`, `<developers>`, `<distributionManagement>`
+- [x] **Pre-publish POM metadata** — root POM now declares `<url>`, `<organization>`, `<licenses>`, `<developers>`, `<scm>`, `<issueManagement>`, `<distributionManagement>` (Sonatype Central Portal). Required by Maven Central
 - [ ] **Sibling-repo orchestration** — documented or solved (currently CI does in-job clone+install per repo; longer-term consider SNAPSHOT registry)
 
 ## 0.3.0 — LSP custom Exeris methods
