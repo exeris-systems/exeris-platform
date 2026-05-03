@@ -1,0 +1,74 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>eu.exeris.platform</groupId>
+        <artifactId>exeris-platform-root</artifactId>
+        <version>0.1.0-SNAPSHOT</version>
+    </parent>
+
+    <artifactId>exeris-platform-bom</artifactId>
+    <packaging>pom</packaging>
+
+    <name>Exeris Platform :: BOM</name>
+    <description>Bill of materials for platform modules and third-party deps.</description>
+
+    <properties>
+        <exeris.sdk.version>0.1.0-SNAPSHOT</exeris.sdk.version>
+        <exeris.tooling.version>0.1.0-SNAPSHOT</exeris.tooling.version>
+
+        <junit.version>5.11.4</junit.version>
+        <assertj.version>3.27.3</assertj.version>
+    </properties>
+
+    <dependencyManagement>
+        <dependencies>
+            <!-- Exeris SDK -->
+            <dependency>
+                <groupId>eu.exeris</groupId>
+                <artifactId>exeris-sdk-annotations</artifactId>
+                <version>${exeris.sdk.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>eu.exeris</groupId>
+                <artifactId>exeris-sdk-source-model</artifactId>
+                <version>${exeris.sdk.version}</version>
+            </dependency>
+
+            <!-- Exeris Tooling (build-time, available for Studio integration) -->
+            <dependency>
+                <groupId>eu.exeris.tooling</groupId>
+                <artifactId>exeris-codegen-core</artifactId>
+                <version>${exeris.tooling.version}</version>
+            </dependency>
+
+            <!-- Internal platform modules -->
+            <dependency>
+                <groupId>eu.exeris.platform</groupId>
+                <artifactId>exeris-studio-backend</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>eu.exeris.platform</groupId>
+                <artifactId>exeris-platform-lsp</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+
+            <!-- Test deps -->
+            <dependency>
+                <groupId>org.junit.jupiter</groupId>
+                <artifactId>junit-jupiter</artifactId>
+                <version>${junit.version}</version>
+                <scope>test</scope>
+            </dependency>
+            <dependency>
+                <groupId>org.assertj</groupId>
+                <artifactId>assertj-core</artifactId>
+                <version>${assertj.version}</version>
+                <scope>test</scope>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
+</project>
