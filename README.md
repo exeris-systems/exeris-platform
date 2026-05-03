@@ -54,9 +54,10 @@ same reason: the open core must be a fully usable Studio for any single team.
 
 - JDK 26
 - Maven 3.9+
-- Node 18+ (`exeris-studio-frontend`)
+- Node 24+ (`exeris-studio-frontend` — required by `package.json` engines field; Angular 21)
 - Local install of `eu.exeris:exeris-sdk-*` and `eu.exeris.tooling:*` (run
-  `mvn install` in those repos first).
+  `mvn install` in those repos first — until SNAPSHOTs are published, a fresh
+  clone of this repo alone cannot resolve those dependencies).
 
 ## Build
 

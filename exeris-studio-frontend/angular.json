@@ -3,7 +3,7 @@
   "version": 1,
   "newProjectRoot": "projects",
   "projects": {
-    "exeris-foundation-frontend": {
+    "exeris-studio-frontend": {
       "projectType": "application",
       "schematics": {
         "@schematics/angular:component": {
@@ -19,7 +19,7 @@
         "build": {
           "builder": "@angular-devkit/build-angular:application",
           "options": {
-            "outputPath": "dist/exeris-foundation-frontend",
+            "outputPath": "dist/exeris-studio-frontend",
             "index": "src/index.html",
             "browser": "src/main.ts",
             "polyfills": [],
@@ -53,8 +53,8 @@
         "serve": {
           "builder": "@angular-devkit/build-angular:dev-server",
           "configurations": {
-            "production": { "buildTarget": "exeris-foundation-frontend:build:production" },
-            "development": { "buildTarget": "exeris-foundation-frontend:build:development" }
+            "production": { "buildTarget": "exeris-studio-frontend:build:production" },
+            "development": { "buildTarget": "exeris-studio-frontend:build:development" }
           },
           "defaultConfiguration": "development"
         }

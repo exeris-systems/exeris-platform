@@ -1,7 +1,7 @@
 {
-  "name": "exeris-foundation-frontend",
+  "name": "exeris-studio-frontend",
   "version": "0.1.0",
-  "description": "Exeris Foundation - Generated Angular Frontend",
+  "description": "Exeris Studio - Generated Angular Frontend",
   "type": "module",
   "engines": {
     "node": ">=24.0.0"

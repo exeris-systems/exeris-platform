@@ -3,9 +3,10 @@ target/
 .mvn/
 *.versionsBackup
 
-# Node
+# Node / Angular
 node_modules/
 dist/
+.angular/
 *.tsbuildinfo
 
 # IDE
