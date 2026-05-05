@@ -1,4 +1,15 @@
 {
+  // DEV-ONLY proxy config — used by `ng serve` to route /api → backend dev port.
+  // Parsed by Angular CLI via jsonc-parser, so // comments are valid here.
+  //
+  // `secure: false` disables TLS certificate verification on the proxy hop.
+  // It is currently inert (target uses plain HTTP) but is pre-set for when
+  // devs switch the target to https://localhost:8443 and need to accept a
+  // self-signed backend cert.
+  //
+  // DO NOT copy this file into a production build, container image, or CI
+  // artifact. Production deployments must use a valid cert (public CA or
+  // explicitly trusted internal CA) — never `secure: false`.
   "/api": {
     "target": "http://localhost:8443",
     "secure": false,
