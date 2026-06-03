@@ -1,8 +1,10 @@
 /**
  * Exeris Platform LSP server skeleton.
  *
- * <p><b>Status:</b> placeholder. Real implementation depends on
- * {@code exeris-sdk-source-model} growing its JavaParser-based parser/writer.
+ * <p><b>Status:</b> placeholder. Real implementation depends on the
+ * {@code exeris-sdk-source-model-io} module (ADR-037) shipping its
+ * JavaParser-based parser/writer; the canonical AST records come from
+ * {@code exeris-sdk-source-model}.
  *
  * <p>Planned scope:
  * <ul>
@@ -14,8 +16,9 @@
  *       {@code exeris/diagnostics}.</li>
  *   <li>File watching with versioned document handling for conflict-free
  *       Studio↔IDE bidirectional sync.</li>
- *   <li>Idempotent {@code .java} write-back via the source-model writer,
- *       preserving formatting, comments, and {@code *Impl} custom regions.</li>
+ *   <li>Idempotent {@code .java} write-back via the
+ *       {@code exeris-sdk-source-model-io} writer, preserving formatting,
+ *       comments, and {@code *Impl} custom regions.</li>
  * </ul>
  */
 package eu.exeris.platform.lsp;
