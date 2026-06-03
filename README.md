@@ -5,8 +5,8 @@ editor), backend services, and the LSP server that powers bidirectional sync
 between Studio, IDE plugins, and on-disk `@ExerisDomain` sources.
 
 > **Status:** skeleton. Most modules are placeholders that scaffold the target
-> architecture. Real implementation lands once `exeris-sdk-source-model` ships
-> its JavaParser-based parser/writer.
+> architecture. Real implementation lands once `exeris-sdk-source-model-io`
+> (ADR-037) ships its JavaParser-based parser/writer.
 
 ## Architecture (target)
 
@@ -17,8 +17,11 @@ Studio (Angular + React)              IntelliJ Plugin           VS Code Extensio
                                   │
                        exeris-platform-lsp
                                   │
+                       exeris-sdk-source-model-io
+                       (JavaParser parser + writer)
+                                  │
                        exeris-sdk-source-model
-                       (parser + writer + AST)
+                       (canonical AST records)
                                   │
                        .java sources on disk
                        + exeris-metadata/*.json
