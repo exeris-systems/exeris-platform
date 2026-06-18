@@ -23,7 +23,7 @@ The split mirrors the kernel `community / enterprise` model. The open core must 
 
 ## Evidence Gathering (do this first)
 When no diff is handed in (autodispatch), find the change yourself:
-- `git diff main...HEAD` plus the stated motivation.
+- `git diff origin/main...HEAD` plus the stated motivation.
 - Premium-shape smell: grep added lines for `role|rbac|permission|approval|audit|tenant|org|environment|promote|staging|prod`.
 - Extension vs implementation: an `interface` / SPI / extension point / hook is open-core; a concrete promoter, RBAC enforcer, approval engine, or audit sink is the enterprise side.
 

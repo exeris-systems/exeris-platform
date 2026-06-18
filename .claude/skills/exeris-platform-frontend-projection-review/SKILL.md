@@ -6,7 +6,7 @@ description: Ensure the Studio frontend PROJECTS the canonical DomainMetadata in
 # Exeris Platform Frontend Projection Review
 
 ## Purpose
-The no-parallel-metamodel ban applies to the frontend too, but differently. The scoped ban in CLAUDE.md is explicit: "No second metamodel reintroduction — even 'just for the UI' or 'just for the workspace tree'. Project the canonical `DomainMetadata` to a view-model in the frontend if needed; don't persist a parallel shape." This skill is the frontend-side gate that `exeris-platform-no-parallel-metamodel-review` (backend/LSP-focused) does not cover. It also enforces that the frontend never writes `.java` files directly — mutations flow Studio → LSP → SDK writer → disk.
+The no-parallel-metamodel ban applies to the frontend too, but differently. The repo `CLAUDE.md` ("Scoped bans" → no second metamodel reintroduction) is the live policy and takes precedence; in short, it forbids reintroducing a parallel metamodel even "just for the UI" or "just for the workspace tree", and directs the frontend to project the canonical `DomainMetadata` into a view-model rather than persist a parallel shape. This skill is the frontend-side gate that `exeris-platform-no-parallel-metamodel-review` (backend/LSP-focused) does not cover. It also enforces that the frontend never writes `.java` files directly — mutations flow Studio → LSP → SDK writer → disk.
 
 ## When to Use
 - Any `exeris-studio-frontend` change adding a model / interface / class / store / signal / state slice carrying entity, field, property, relation, action, or validation shape.
@@ -19,7 +19,7 @@ The no-parallel-metamodel ban applies to the frontend too, but differently. The 
 - **Persistence (REGRESSION)** — a client-side shape that is stored, mutated in place, treated as the source of truth, or written back to disk/backend as domain data.
 
 ## Evidence Gathering (do this first)
-- `git diff main...HEAD -- exeris-studio-frontend`
+- `git diff origin/main...HEAD -- exeris-studio-frontend`
 - Domain-shape smell on added TS lines: grep for `interface |class |type ` near `field|property|relation|entity|action|validation|metadata`.
 - Persistence smell: grep for `localStorage|sessionStorage|indexedDB|IDBDatabase|writeFile|fs\.|new File(`.
 - Direct write-back smell: grep for any `.java` string construction, or a backend POST/PUT carrying domain shape rather than workspace state.

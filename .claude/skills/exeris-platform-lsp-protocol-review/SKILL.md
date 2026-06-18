@@ -26,7 +26,7 @@ Enforce the LSP wire-surface contract:
 
 ## Evidence Gathering (do this first)
 When no diff is handed in (autodispatch), find the change yourself:
-- `git diff main...HEAD -- exeris-platform-lsp`
+- `git diff origin/main...HEAD -- exeris-platform-lsp`
 - Custom methods touched: grep added/removed lines for method-string literals matching `"[a-zA-Z]+/[a-zA-Z]+"`; flag any not starting with `exeris/` or a standard LSP prefix (`textDocument/`, `workspace/`).
 - SDK alignment: grep for local definitions of `MutationOp|MutationResult|CapabilityDescriptor|DomainMetadata` (a local `record`/`class` of these is a regression).
 - Transport parity: confirm the stdio and WebSocket handler registrations changed together.

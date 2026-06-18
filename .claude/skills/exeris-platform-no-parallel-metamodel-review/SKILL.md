@@ -23,8 +23,8 @@ The Corelio-era `EntityDefinition` / `PropertyDefinition` / `RelationDefinition`
 
 ## Evidence Gathering (do this first)
 When no diff is handed in (autodispatch), find the change yourself — never review from the PR text alone:
-- `git diff --staged` and `git diff main...HEAD -- exeris-studio-backend exeris-platform-lsp`
-- New types: `git diff main...HEAD -- '*.java' | grep -E '^\+.*(record|class|interface|enum) '`
+- `git diff origin/main...HEAD -- exeris-studio-backend exeris-platform-lsp` (or `git diff --staged` only in a pre-commit-hook context)
+- New types: `git diff origin/main...HEAD -- '*.java' | grep -E '^\+.*(record|class|interface|enum) '`
 - Domain-shape smell on added lines: grep for `name|field|property|relation|action|validation|event|saga`
 - New endpoints: grep added lines for `@GetMapping|@PostMapping|@PutMapping|@RequestMapping|@Path`
 Ground every finding in a real `file:line`.

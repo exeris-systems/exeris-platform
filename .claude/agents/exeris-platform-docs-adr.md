@@ -12,7 +12,7 @@ Maintain knowledge integrity between platform implementation and its strategic d
 
 ## Primary Responsibilities
 - Detect drift between changed code and `README.md` target architecture diagram + module table, `ROADMAP.md` milestone scope, backend `package-info` ("no metamodel here" rationale).
-- Determine whether a change should trigger a new ADR (cross-repo registry at `~/exeris-systems/exeris-docs/adr-index.md`), a README edit, a ROADMAP milestone update, or nothing.
+- Determine whether a change should trigger a new ADR (cross-repo registry at `~/exeris-systems/exeris-docs/adr-index.md` — the standard sibling-repo layout; adjust to your local `exeris-docs` clone, and treat its absence in a container/CI context as a hard miss, not a silent skip), a README edit, a ROADMAP milestone update, or nothing.
 - Reserve ADR numbers in the central registry BEFORE drafting.
 - Keep docs realistic to current repository state (0.1.0 scaffold; 0.2.0+ pending).
 - Do not let docs outrun code: planned 0.3.0+ LSP custom methods stay marked as target until shipped.

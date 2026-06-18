@@ -34,6 +34,7 @@ If multiple categories apply, route by primary risk first and list required seco
 - `exeris-platform-routing-planner` (must-have)
 - `exeris-platform-no-parallel-metamodel-review` (recommended whenever a record/class with domain shape appears in backend)
 - `exeris-platform-lsp-protocol-review` (recommended whenever LSP method surface changes)
+- `exeris-platform-idempotent-writeback-review` (recommended whenever the LSP write path / a mutation kind changes)
 - `exeris-platform-open-core-boundary-review` (recommended whenever a premium-shaped feature is proposed)
 - `exeris-platform-frontend-projection-review` (recommended whenever the frontend adds a model/store/state type)
 - `exeris-platform-contract-sweep` (recommended on a broad/multi-module PR — runs all four contracts in one pass)

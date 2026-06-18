@@ -23,7 +23,7 @@ This is what makes Studio + IDE plugins + on-disk sources safe to round-trip thr
 
 ## Evidence Gathering (do this first)
 When no diff is handed in (autodispatch), find the change yourself:
-- `git diff main...HEAD -- exeris-platform-lsp`
+- `git diff origin/main...HEAD -- exeris-platform-lsp`
 - Direct-write smell: grep added lines for `Files.write|Files.writeString|FileWriter|OutputStream|BufferedWriter` — any of these in the mutation path is a writer bypass to investigate.
 - Writer routing: confirm the path delegates into the `exeris-sdk-source-model` writer rather than emitting text itself.
 - Round-trip test: grep test sources for a twice-applied / byte-equality assertion covering the touched mutation kind; its absence is the key finding.

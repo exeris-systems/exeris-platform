@@ -23,7 +23,7 @@ If upstream measurement or option comparison is missing, recommend Research or R
 ## Procedure
 1. **Classify the question** — decided / multi-option-open / needs-measurement. Map to ADR / RFC / Research.
 2. **Scope check** — is this a platform-local concern or cross-repo? Cross-repo decisions and anything touching the shared `DomainMetadata` contract or LSP wire surface are ecosystem-level.
-3. **Registry routing (ADR only)** — there is ONE ADR namespace, indexed in `~/exeris-systems/exeris-docs/adr-index.md`. **Reserve the number there first**, then write content. Platform-local ADRs live in `docs/adr/`; cross-repo ADRs leave a `docs/adr/ADR-NNN.link.md` stub here.
+3. **Registry routing (ADR only)** — there is ONE ADR namespace, indexed in `~/exeris-systems/exeris-docs/adr-index.md` (that path is the standard sibling-repo workspace layout — adjust to wherever your `exeris-docs` clone lives; in a container/CI context the registry may be absent, which is a hard miss, not a silent skip). **Reserve the number there first**, then write content. Platform-local ADRs live in `docs/adr/`; cross-repo ADRs leave a `docs/adr/ADR-NNN.link.md` stub here.
 4. **Business-vs-tech check** — legal / IP / financial / procurement decisions do NOT enter the tech registry; they belong to the private business registry. Refer to such policy descriptively, not by an internal id.
 5. **Refactor-only check** — a refactor-only decision goes in the PR description / commit history, never the ADR registry.
 6. **Recommend and (if ADR) reserve** — output shape, filename, location, and the next action.

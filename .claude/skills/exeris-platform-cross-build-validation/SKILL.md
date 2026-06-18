@@ -15,7 +15,7 @@ The validation gate that `exeris-platform-routing-planner` names for `CROSS_BUIL
 - Before declaring a multi-module task "done".
 
 ## Evidence Gathering (do this first)
-- `git diff --name-only main...HEAD` — split touched paths into Java vs `exeris-studio-frontend/`. If both buckets are non-empty, this is cross-build.
+- `git diff --name-only origin/main...HEAD` — split touched paths into Java vs `exeris-studio-frontend/`. If both buckets are non-empty, this is cross-build.
 - Identify the shared surface: which `exeris/*` method / wire shape does the frontend call, and did the Java side change it?
 - Check that upstream deps resolve: `eu.exeris:*` come from GitHub Packages, not Maven Central — `PACKAGES_READ_TOKEN` / `GITHUB_TOKEN` must be set (see top-level CLAUDE.md), or a local `mvn install` of the SDK/tooling must already exist.
 
