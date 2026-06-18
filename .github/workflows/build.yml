@@ -13,6 +13,20 @@ jobs:
   java:
     name: mvn install (JDK ${{ matrix.java }})
     runs-on: ubuntu-latest
+    # packages:read is scoped to this job — the frontend job doesn't touch Packages.
+    permissions:
+      contents: read
+      packages: read
+    # Cross-repo GitHub Packages auth. Installing the exeris-tooling sibling
+    # pulls eu.exeris:exeris-kernel-* transitively from the exeris-kernel package
+    # registry; the auto GITHUB_TOKEN can't read another repo's packages, so the
+    # generated settings.xml (see setup-java below) authenticates with the
+    # PACKAGES_READ_TOKEN PAT (read:packages, cross-repo). The username is the org
+    # literal (decoupled from github.actor so a bot/teammate trigger still auths) —
+    # same shape as exeris-kernel/.github/maven-settings.xml.
+    env:
+      PACKAGES_READ_USER: exeris-systems
+      PACKAGES_READ_TOKEN: ${{ secrets.PACKAGES_READ_TOKEN }}
     strategy:
       fail-fast: false
       matrix:
@@ -24,11 +38,11 @@ jobs:
         with:
           path: exeris-platform
 
-      - name: Checkout exeris-sdk (SNAPSHOT dep)
+      - name: Checkout exeris-sdk (pinned to v0.7.0 — matches exeris.sdk.version in the BOM)
         uses: actions/checkout@v4
         with:
           repository: exeris-systems/exeris-sdk
-          ref: main
+          ref: v0.7.0
           path: exeris-sdk
 
       - name: Checkout exeris-tooling (SNAPSHOT dep)
@@ -44,6 +58,9 @@ jobs:
           distribution: temurin
           java-version: ${{ matrix.java }}
           cache: maven
+          server-id: github-exeris-kernel
+          server-username: PACKAGES_READ_USER
+          server-password: PACKAGES_READ_TOKEN
 
       - name: Install exeris-sdk to local Maven repo
         working-directory: exeris-sdk

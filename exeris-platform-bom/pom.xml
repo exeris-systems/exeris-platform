@@ -16,8 +16,11 @@
     <description>Bill of materials for platform modules and third-party deps.</description>
 
     <properties>
-        <exeris.sdk.version>0.1.0-SNAPSHOT</exeris.sdk.version>
-        <exeris.tooling.version>0.1.0-SNAPSHOT</exeris.tooling.version>
+        <!-- Keep in sync with the sibling checkout refs in .github/workflows/build.yml:
+             exeris-sdk is checked out at tag v0.7.0; exeris-tooling tracks main (0.6.0-SNAPSHOT).
+             A bump here that forgets the workflow ref will silently build the wrong version. -->
+        <exeris.sdk.version>0.7.0</exeris.sdk.version>
+        <exeris.tooling.version>0.6.0-SNAPSHOT</exeris.tooling.version>
 
         <junit.version>5.11.4</junit.version>
         <assertj.version>3.27.3</assertj.version>
