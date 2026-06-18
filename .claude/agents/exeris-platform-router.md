@@ -37,7 +37,7 @@ If multiple categories apply, route by primary risk first and list required seco
 - `exeris-platform-idempotent-writeback-review` (recommended whenever the LSP write path / a mutation kind changes)
 - `exeris-platform-open-core-boundary-review` (recommended whenever a premium-shaped feature is proposed)
 - `exeris-platform-frontend-projection-review` (recommended whenever the frontend adds a model/store/state type)
-- `exeris-platform-contract-sweep` (recommended on a broad/multi-module PR — runs all four contracts in one pass)
+- `exeris-platform-contract-sweep` (recommended on a broad/multi-module PR — runs all five contracts in one pass)
 - `exeris-platform-cross-build-validation` (recommended whenever a change spans Java modules and the npm frontend)
 - `exeris-platform-sdk-dep-sync` (recommended on a fresh clone or an unresolved `eu.exeris:*` build failure)
 - `exeris-platform-decision-doc-shape` (recommended before drafting any ADR/RFC/Research note)

@@ -17,7 +17,7 @@ and works as the operating context for AI assistants on Studio + LSP + studio-ba
 - `skills/` — invocable skills (`/<skill-name>`), and also auto-dispatched by the model from their `description` triggers:
   - Triage / planning: `exeris-platform-task-classifier`, `exeris-platform-routing-planner`
   - Contract reviews (deep, evidence-gathering): `exeris-platform-no-parallel-metamodel-review`, `exeris-platform-lsp-protocol-review`, `exeris-platform-idempotent-writeback-review`, `exeris-platform-open-core-boundary-review`, `exeris-platform-frontend-projection-review` (frontend projection vs persistence)
-  - Sweep / gates / authoring: `exeris-platform-contract-sweep` (all four contracts in one pass), `exeris-platform-cross-build-validation` (Maven↔npm gate), `exeris-platform-sdk-dep-sync` (upstream `eu.exeris:*` resolvability), `exeris-platform-decision-doc-shape` (Research/RFC/ADR selector)
+  - Sweep / gates / authoring: `exeris-platform-contract-sweep` (all five contracts in one pass), `exeris-platform-cross-build-validation` (Maven↔npm gate), `exeris-platform-sdk-dep-sync` (upstream `eu.exeris:*` resolvability), `exeris-platform-decision-doc-shape` (Research/RFC/ADR selector)
 
 ### Commands vs review skills — when each fires
 
