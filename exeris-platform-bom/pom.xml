@@ -16,8 +16,8 @@
     <description>Bill of materials for platform modules and third-party deps.</description>
 
     <properties>
-        <exeris.sdk.version>0.1.0-SNAPSHOT</exeris.sdk.version>
-        <exeris.tooling.version>0.1.0-SNAPSHOT</exeris.tooling.version>
+        <exeris.sdk.version>0.7.0</exeris.sdk.version>
+        <exeris.tooling.version>0.6.0-SNAPSHOT</exeris.tooling.version>
 
         <junit.version>5.11.4</junit.version>
         <assertj.version>3.27.3</assertj.version>
