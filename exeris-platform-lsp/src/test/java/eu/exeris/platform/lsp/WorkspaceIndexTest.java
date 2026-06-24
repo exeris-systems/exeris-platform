@@ -1,6 +1,8 @@
 package eu.exeris.platform.lsp;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatCode;
+import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -53,5 +55,34 @@ class WorkspaceIndexTest {
                 .singleElement()
                 .satisfies(d -> assertThat(d.metadata().fullyQualifiedName())
                         .isEqualTo("com.example.bank.Account"));
+    }
+
+    @Test
+    void unreadableSubdirectoryDoesNotSinkTheScan(@TempDir Path workspace) throws Exception {
+        Files.writeString(workspace.resolve("Account.java"), """
+                package com.example.bank;
+
+                import eu.exeris.sdk.annotations.ExerisDomain;
+
+                @ExerisDomain(name = "Account")
+                public class Account {
+                }
+                """);
+        Path locked = Files.createDirectory(workspace.resolve("locked"));
+        boolean restricted = locked.toFile().setReadable(false) & locked.toFile().setExecutable(false);
+        // Skip where the filesystem ignores POSIX perms (e.g. CI running as root) — we can't
+        // provoke the AccessDeniedException the test is about.
+        assumeTrue(restricted && !Files.isReadable(locked),
+                "environment ignores directory permissions; cannot simulate AccessDenied");
+
+        try {
+            // Walk hits the unreadable dir mid-traversal (UncheckedIOException); the scan must
+            // swallow it and return, not propagate. (Partial contents are order-dependent, so we
+            // only assert it doesn't throw.)
+            assertThatCode(() -> new WorkspaceIndex(workspace).domains()).doesNotThrowAnyException();
+        } finally {
+            locked.toFile().setReadable(true);
+            locked.toFile().setExecutable(true);
+        }
     }
 }

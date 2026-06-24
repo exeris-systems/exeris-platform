@@ -21,6 +21,8 @@ import java.util.stream.Stream;
  */
 final class WorkspaceIndex {
 
+    private static final System.Logger LOG = System.getLogger(WorkspaceIndex.class.getName());
+
     /** A parsed domain paired with the on-disk source it was read from. */
     record IndexedDomain(DomainMetadata metadata, Path sourcePath) {
     }
@@ -61,8 +63,13 @@ final class WorkspaceIndex {
             paths.filter(Files::isRegularFile)
                     .filter(p -> p.getFileName().toString().endsWith(".java"))
                     .forEach(p -> readDomain(p).ifPresent(found::add));
-        } catch (IOException e) {
-            throw new UncheckedIOException("Failed to walk workspace root " + root, e);
+        } catch (IOException | UncheckedIOException e) {
+            // An unreadable subdirectory must not sink the whole index. Files.walk surfaces an
+            // AccessDeniedException from the initial call as IOException and one hit during lazy
+            // traversal as UncheckedIOException — catch both and return whatever was collected.
+            // Logged to stderr, which is separate from the stdio JSON-RPC channel on stdout.
+            LOG.log(System.Logger.Level.WARNING,
+                    () -> "Partial workspace index: walk interrupted under " + root, e);
         }
         return List.copyOf(found);
     }
