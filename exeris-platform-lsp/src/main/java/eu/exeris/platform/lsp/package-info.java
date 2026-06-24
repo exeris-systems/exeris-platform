@@ -1,10 +1,12 @@
 /**
- * Exeris Platform LSP server skeleton.
+ * Exeris Platform LSP server.
  *
- * <p><b>Status:</b> placeholder. Real implementation depends on the
- * {@code exeris-sdk-source-model-io} module (ADR-037) shipping its
- * JavaParser-based parser/writer; the canonical AST records come from
- * {@code exeris-sdk-source-model}.
+ * <p><b>Status:</b> the server speaks JSON-RPC over stdio (LSP4J), answers the base
+ * lifecycle ({@code initialize} / {@code shutdown} / {@code exit}), and serves the read-only
+ * {@code exeris/*} trio ({@code exeris/domains}, {@code exeris/domainDescribe},
+ * {@code exeris/actions}) backed by the {@code exeris-sdk-source-model-io} reader (ADR-037);
+ * the canonical AST records come from {@code exeris-sdk-source-model}. This unblocks the
+ * {@code lsp:*} tool family in exeris-ai-bridge (ADR-025). Write-back is a later slice.
  *
  * <p>Planned scope:
  * <ul>

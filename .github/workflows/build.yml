@@ -38,11 +38,11 @@ jobs:
         with:
           path: exeris-platform
 
-      - name: Checkout exeris-sdk (pinned to v0.7.0 — matches exeris.sdk.version in the BOM)
+      - name: Checkout exeris-sdk (tracks main — matches exeris.sdk.version 0.8.0-SNAPSHOT in the BOM)
         uses: actions/checkout@v4
         with:
           repository: exeris-systems/exeris-sdk
-          ref: v0.7.0
+          ref: main
           path: exeris-sdk
 
       - name: Checkout exeris-tooling (SNAPSHOT dep)
