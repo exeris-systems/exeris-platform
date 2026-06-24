@@ -21,7 +21,7 @@ final class ProtocolProjections {
     static DomainSummary toSummary(IndexedDomain indexed) {
         DomainMetadata d = indexed.metadata();
         return new DomainSummary(d.fullyQualifiedName(), d.entityName(), d.packageName(),
-                indexed.sourcePath().toString());
+                indexed.sourcePath().toUri().toString());
     }
 
     static DomainDescription toDescription(IndexedDomain indexed) {
@@ -33,7 +33,7 @@ final class ProtocolProjections {
                 .map(a -> new ActionDescription(a.name(), a.httpMethod(), a.resultType(), params(a)))
                 .toList();
         return new DomainDescription(d.fullyQualifiedName(), d.entityName(), d.packageName(),
-                indexed.sourcePath().toString(), fields, actions, artefacts(d));
+                indexed.sourcePath().toUri().toString(), fields, actions, artefacts(d));
     }
 
     static List<ActionSummary> toActionSummaries(IndexedDomain indexed) {

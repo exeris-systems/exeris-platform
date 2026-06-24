@@ -7,9 +7,9 @@ import org.eclipse.lsp4j.DidSaveTextDocumentParams;
 import org.eclipse.lsp4j.services.TextDocumentService;
 
 /**
- * Document-sync notifications. No-op in the 0.2.0 skeleton — once the workspace index
- * lands, {@code didSave} / {@code didChange} will invalidate cached {@code DomainMetadata}
- * for the affected source so {@code exeris/*} reads stay fresh.
+ * Document-sync notifications. No-op for now — when the {@code didSave}/{@code didChange}
+ * invalidation is wired (next slice), these will call {@link WorkspaceIndex#invalidate()} so
+ * {@code exeris/*} reads reflect edits made in the editor.
  */
 final class ExerisTextDocumentService implements TextDocumentService {
 

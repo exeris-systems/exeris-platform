@@ -1,6 +1,7 @@
 package eu.exeris.platform.lsp;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import eu.exeris.platform.lsp.ExerisProtocolExtensions.ActionSummary;
 import eu.exeris.platform.lsp.ExerisProtocolExtensions.DomainDescribeParams;
@@ -15,6 +16,7 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
@@ -26,6 +28,7 @@ import org.eclipse.lsp4j.PublishDiagnosticsParams;
 import org.eclipse.lsp4j.ShowMessageRequestParams;
 import org.eclipse.lsp4j.TextDocumentSyncKind;
 import org.eclipse.lsp4j.jsonrpc.Launcher;
+import org.eclipse.lsp4j.jsonrpc.ResponseErrorException;
 import org.eclipse.lsp4j.services.LanguageClient;
 import org.eclipse.lsp4j.services.LanguageServer;
 import org.junit.jupiter.api.AfterEach;
@@ -70,7 +73,7 @@ class ExerisLanguageServerTest {
 
         InitializeResult init = remote.initialize(new InitializeParams()).get(5, TimeUnit.SECONDS);
         assertThat(init.getCapabilities().getTextDocumentSync().getLeft())
-                .isEqualTo(TextDocumentSyncKind.Full);
+                .isEqualTo(TextDocumentSyncKind.None);
 
         assertThat(remote.shutdown().get(5, TimeUnit.SECONDS)).isNull();
     }
@@ -149,6 +152,18 @@ class ExerisLanguageServerTest {
                 .domainDescribe(new DomainDescribeParams("does.not.Exist"))
                 .get(5, TimeUnit.SECONDS);
         assertThat(missing).isNull();
+    }
+
+    @Test
+    @Timeout(10)
+    void exerisMethodBeforeInitializeFailsWithJsonRpcError() throws Exception {
+        ServerApi remote = connect(new ExerisLanguageServer());
+
+        // requireIndex() throws IllegalStateException synchronously; LSP4J turns it into a
+        // JSON-RPC error, surfaced to the client as a ResponseErrorException.
+        assertThatThrownBy(() -> remote.domains().get(5, TimeUnit.SECONDS))
+                .isInstanceOf(ExecutionException.class)
+                .hasCauseInstanceOf(ResponseErrorException.class);
     }
 
     /** Wires an in-memory client proxy to {@code server} and returns the remote view. */

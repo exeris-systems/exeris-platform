@@ -77,8 +77,10 @@ final class WorkspaceIndex {
         }
         try {
             return reader.read(source).map(metadata -> new IndexedDomain(metadata, file));
-        } catch (IllegalArgumentException notValidJava) {
-            // A .java file that doesn't parse (work-in-progress, template) is skipped.
+        } catch (RuntimeException readFailure) {
+            // The reader throws IllegalArgumentException on unparseable Java; we defensively
+            // catch any unchecked failure so a single bad / work-in-progress source (or an
+            // internal reader error) is skipped rather than failing the whole index build.
             return Optional.empty();
         }
     }

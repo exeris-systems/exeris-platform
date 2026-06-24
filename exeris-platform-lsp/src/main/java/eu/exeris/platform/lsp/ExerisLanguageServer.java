@@ -33,13 +33,19 @@ public final class ExerisLanguageServer
     private LanguageClient client;
 
     private volatile WorkspaceIndex index;
-    private boolean shutdownRequested;
+    // volatile: shutdown() and exit() can arrive on different LSP4J dispatch threads, so the
+    // flag write in shutdown() must be visible to the read in exit() (else a clean shutdown
+    // could still exit 1).
+    private volatile boolean shutdownRequested;
 
     @Override
     public CompletableFuture<InitializeResult> initialize(InitializeParams params) {
         this.index = new WorkspaceIndex(resolveRoot(params));
         ServerCapabilities capabilities = new ServerCapabilities();
-        capabilities.setTextDocumentSync(TextDocumentSyncKind.Full);
+        // None: this slice is read-only and didOpen/didChange/didSave are no-ops, so there is
+        // no reason for clients to stream document text. Switch to Incremental when the
+        // didSave/didChange -> index.invalidate() follow-up lands.
+        capabilities.setTextDocumentSync(TextDocumentSyncKind.None);
         return CompletableFuture.completedFuture(new InitializeResult(capabilities));
     }
 
