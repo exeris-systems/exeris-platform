@@ -23,8 +23,9 @@ import tools.jackson.databind.json.JsonMapper;
  *
  * <p>The checks (O(n) over caps, no resolution):
  * <ol>
- *   <li><b>Handshake.</b> {@code schemaVersion <= }{@value #KNOWN_SCHEMA_VERSION} — fail clearly on
- *       a newer manifest this runtime does not understand.</li>
+ *   <li><b>Handshake.</b> {@code schemaVersion} in {@code [1, }{@value #KNOWN_SCHEMA_VERSION}{@code ]}
+ *       — refuse a missing/pre-ADR-024 ({@code 0}) manifest and one newer than this runtime
+ *       understands, each with a clear message.</li>
  *   <li><b>Presence + well-formedness.</b> stamp present, {@code validated == true},
  *       {@code contentBinding} matches {@code ^sha256:[0-9a-f]{64}$}. ({@code compositionVersion}
  *       may be {@code "0.0.0"} until the codegen plugin wires it — tolerated, never a hard fail.)</li>
@@ -206,6 +207,10 @@ public final class CompositionStampAssertion {
      * Convenience: collect a {@code service → version} map from one or more already-parsed manifests
      * (e.g. the cap-manifest fragments discovered on the classpath) for use as the
      * {@code classpathServiceVersions} argument in a multi-manifest deploy.
+     *
+     * <p>Precondition: {@code manifest} must be well-formed (no null module elements) — typically a
+     * manifest that already passed {@link #assertConsistent}. Passing a manifest with a null module
+     * entry NPEs, by design; this is a post-assertion helper, not an entry validator.
      */
     public static Map<String, String> serviceVersions(CapManifest manifest) {
         Map<String, String> versions = new HashMap<>();
