@@ -33,6 +33,18 @@
             <groupId>org.eclipse.lsp4j</groupId>
             <artifactId>org.eclipse.lsp4j</artifactId>
         </dependency>
+        <!-- gson: LSP4J wire layer; used directly for the JsonElement boundary of
+             exeris/applyMutation. jackson-databind: (de)serializes the SDK's polymorphic
+             MutationOp / MutationResult per the SDK consumer contract (Gson can't — it
+             ignores the @JsonTypeInfo op/outcome discriminators). -->
+        <dependency>
+            <groupId>com.google.code.gson</groupId>
+            <artifactId>gson</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>tools.jackson.core</groupId>
+            <artifactId>jackson-databind</artifactId>
+        </dependency>
 
         <dependency>
             <groupId>org.junit.jupiter</groupId>
