@@ -39,12 +39,18 @@ final class MutationApplyService {
             .configure(DeserializationFeature.FAIL_ON_NULL_FOR_PRIMITIVES, false)
             .build();
 
+    // Shared across requests. Safe because LSP4J dispatches messages on a single reader thread
+    // (sequential), and MAPPER is a thread-safe Jackson mapper; the applier holds no per-call
+    // mutable state. If the server ever moves to async / thread-pool dispatch, revisit this.
     private final SourceModelMutationApplier applier = new SourceModelMutationApplier();
 
     /**
-     * Applies {@code params.op()} to the source for {@code params.qualifiedName()}. Never throws —
-     * every failure path maps to a {@link MutationResult.ValidationError}, mirroring the SDK
-     * applier's "{@code ApplyResult} never throws" contract — and returns the verdict as JSON.
+     * Applies {@code params.op()} to the source for {@code params.qualifiedName()}. Every
+     * apply-path failure (unparseable op, unknown domain, unreadable/unwritable source) maps to a
+     * {@link MutationResult.ValidationError} rather than throwing, mirroring the SDK applier's
+     * "{@code ApplyResult} never throws" contract. The only theoretical unchecked escape is a
+     * serialization failure inside {@link #verdict} — which the SDK-sealed {@link MutationResult}
+     * types do not trigger in practice.
      *
      * @param index            the live workspace index (resolves qualifiedName → source path)
      * @param params           the request payload
@@ -59,6 +65,8 @@ final class MutationApplyService {
         try {
             op = MAPPER.readValue(params.op().toString(), MutationOp.class);
         } catch (RuntimeException unparseable) {
+            // Jackson 3's JacksonException is UNCHECKED (extends RuntimeException, unlike Jackson 2's
+            // IOException-rooted one), so a malformed op surfaces here, not as a checked throw.
             return verdict(new MutationResult.ValidationError(null,
                     "unparseable mutation op: " + unparseable.getMessage()));
         }
@@ -84,6 +92,11 @@ final class MutationApplyService {
             try {
                 Files.writeString(file, result.source());
             } catch (IOException unwritable) {
+                // Not strictly a *validation* failure — the op computed cleanly (result.applied());
+                // this is an IO error at write-back. We reuse VALIDATION_ERROR because it is the
+                // only non-success MutationResult variant the SDK exposes for "couldn't complete";
+                // the message names write-back so an ai-bridge consumer doesn't read it as
+                // "the op was structurally wrong".
                 return verdict(new MutationResult.ValidationError(op.path(),
                         "mutation computed but write-back failed for " + params.qualifiedName()
                                 + ": " + unwritable.getMessage()));

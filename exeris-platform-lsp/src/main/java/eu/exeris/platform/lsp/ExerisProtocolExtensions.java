@@ -19,6 +19,11 @@ import org.eclipse.lsp4j.jsonrpc.services.JsonRequest;
  * (polymorphic on the {@code op} / {@code outcome} discriminators); they are carried as
  * {@link JsonElement} because LSP4J's Gson layer does not honour those discriminators — the server
  * (de)serializes them with the SDK's Jackson 3 mapper. See {@link MutationApplyService}.
+ *
+ * <p><b>API note:</b> carrying {@link JsonElement} puts Gson in this public signature — deliberate
+ * (it is LSP4J's own transport type), but it means an external implementor depends on Gson. Revisit
+ * when the {@code exeris/*} wire contract freezes at 1.0 (e.g. a versioned interface) if that
+ * coupling becomes a problem.
  */
 public interface ExerisProtocolExtensions {
 

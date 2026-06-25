@@ -29,9 +29,15 @@
         <!-- exeris/applyMutation transports the SDK-owned MutationOp / MutationResult shapes,
              which are Jackson-polymorphic (op/outcome discriminators). LSP4J serializes with
              Gson (which ignores @JsonTypeInfo), so the server (de)serializes those payloads with
-             the SDK's Jackson 3 contract instead — keep jackson.version aligned with the SDK BOM.
+             the SDK's Jackson 3 contract instead.
+             Pinned to 3.1.4 (NOT the SDK BOM's 3.1.2): 3.1.2 carries CVE-2026-54512/54513/54514/
+             54517/54518 (two critical), all fixed in 3.1.4. We deliberately run AHEAD of the SDK
+             here — it's a patch bump within 3.1.x (additive, by-name) so the SDK's serialization
+             contract is unaffected; importing the SDK BOM is therefore NOT an option until the SDK
+             itself bumps (it would pull the vulnerable 3.1.2 back in). Drop the explicit pin once
+             the SDK BOM is >= 3.1.4.
              gson is LSP4J's own JSON layer; pinned so the JsonElement wire boundary is explicit. -->
-        <jackson.version>3.1.2</jackson.version>
+        <jackson.version>3.1.4</jackson.version>
         <gson.version>2.11.0</gson.version>
 
         <junit.version>5.11.4</junit.version>
