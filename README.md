@@ -36,8 +36,14 @@ Studio (Angular + React)              IntelliJ Plugin           VS Code Extensio
 | [`exeris-studio-backend`](exeris-studio-backend) | Java 26 | Workspace state and a thin REST/HTTP surface for the Studio frontend. **Holds no domain model** — all domain shape lives in `DomainMetadata` accessed via the LSP server. |
 | [`exeris-studio-frontend`](exeris-studio-frontend) | Angular | Studio shell + embedded React editor. Communicates with the LSP server over WebSocket. |
 | [`exeris-platform-lsp`](exeris-platform-lsp) | Java 26 | LSP server hosting `DomainMetadata`, exposing custom Exeris extensions (`exeris/entityModel`, `exeris/applyMutation`, `exeris/listCapabilities`). |
+| [`exeris-platform-composition-runtime`](exeris-platform-composition-runtime) | Java 26 | Boot-time composition validation-stamp **assertion** (ADR-024 obligation 8) — a generic library every SKU bootstrap calls at startup, before any cap `initialize`, to fail fast if the deployed composition is not the one the tooling validated. Asserts, never re-validates; correctness/operability, not a security gate. |
 | `exeris-platform-bom` | — | Bill of materials. |
 | `exeris-platform-parent` | — | Common Maven build configuration. |
+
+> The composition-runtime module extends this repo beyond its design-time core (Studio + LSP):
+> it is the small **runtime** library the open kernel cannot host (the kernel stays cap-blind,
+> ADR-024 obligation 9). The build-time composition contract (DAG validation, stamp emission)
+> stays in `exeris-tooling`; this repo only asserts the stamp at boot.
 
 ## Open-core split
 
