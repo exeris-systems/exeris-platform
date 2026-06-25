@@ -1,5 +1,6 @@
 package eu.exeris.platform.lsp;
 
+import com.google.gson.JsonElement;
 import java.net.URI;
 import java.nio.file.Path;
 import java.util.List;
@@ -43,6 +44,7 @@ public final class ExerisLanguageServer
 
     private final TextDocumentService textDocumentService;
     private final WorkspaceService workspaceService;
+    private final MutationApplyService mutationService = new MutationApplyService();
 
     private LanguageClient client;
 
@@ -128,6 +130,15 @@ public final class ExerisLanguageServer
                 requireIndex().domains().stream()
                         .flatMap(d -> ProtocolProjections.toActionSummaries(d).stream())
                         .toList());
+    }
+
+    @Override
+    public CompletableFuture<JsonElement> applyMutation(ApplyMutationParams params) {
+        // The only writer to on-disk sources. requireIndex() rejects a pre-initialize call the
+        // same way the read methods do; the service writes back idempotently and invalidates the
+        // index when (and only when) bytes changed.
+        return CompletableFuture.completedFuture(
+                mutationService.apply(requireIndex(), params, this::invalidateIndex));
     }
 
     private WorkspaceIndex requireIndex() {

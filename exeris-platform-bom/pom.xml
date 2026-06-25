@@ -26,6 +26,14 @@
 
         <lsp4j.version>0.23.1</lsp4j.version>
 
+        <!-- exeris/applyMutation transports the SDK-owned MutationOp / MutationResult shapes,
+             which are Jackson-polymorphic (op/outcome discriminators). LSP4J serializes with
+             Gson (which ignores @JsonTypeInfo), so the server (de)serializes those payloads with
+             the SDK's Jackson 3 contract instead — keep jackson.version aligned with the SDK BOM.
+             gson is LSP4J's own JSON layer; pinned so the JsonElement wire boundary is explicit. -->
+        <jackson.version>3.1.2</jackson.version>
+        <gson.version>2.11.0</gson.version>
+
         <junit.version>5.11.4</junit.version>
         <assertj.version>3.27.3</assertj.version>
     </properties>
@@ -55,6 +63,20 @@
                 <groupId>org.eclipse.lsp4j</groupId>
                 <artifactId>org.eclipse.lsp4j</artifactId>
                 <version>${lsp4j.version}</version>
+            </dependency>
+
+            <!-- JSON: gson is LSP4J's wire layer (JsonElement boundary for exeris/applyMutation);
+                 jackson-databind 3 (de)serializes the SDK's polymorphic mutation shapes per the
+                 SDK consumer contract (FAIL_ON_NULL_FOR_PRIMITIVES=false). -->
+            <dependency>
+                <groupId>com.google.code.gson</groupId>
+                <artifactId>gson</artifactId>
+                <version>${gson.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>tools.jackson.core</groupId>
+                <artifactId>jackson-databind</artifactId>
+                <version>${jackson.version}</version>
             </dependency>
 
             <!-- Exeris Tooling (build-time, available for Studio integration) -->
