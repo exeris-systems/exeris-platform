@@ -20,13 +20,24 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
+import org.eclipse.lsp4j.ClientCapabilities;
+import org.eclipse.lsp4j.DidChangeWatchedFilesCapabilities;
+import org.eclipse.lsp4j.DidChangeWatchedFilesParams;
+import org.eclipse.lsp4j.DidSaveTextDocumentParams;
+import org.eclipse.lsp4j.FileChangeType;
+import org.eclipse.lsp4j.FileEvent;
 import org.eclipse.lsp4j.InitializeParams;
 import org.eclipse.lsp4j.InitializeResult;
+import org.eclipse.lsp4j.InitializedParams;
 import org.eclipse.lsp4j.MessageActionItem;
 import org.eclipse.lsp4j.MessageParams;
 import org.eclipse.lsp4j.PublishDiagnosticsParams;
+import org.eclipse.lsp4j.RegistrationParams;
 import org.eclipse.lsp4j.ShowMessageRequestParams;
+import org.eclipse.lsp4j.TextDocumentIdentifier;
 import org.eclipse.lsp4j.TextDocumentSyncKind;
+import org.eclipse.lsp4j.TextDocumentSyncOptions;
+import org.eclipse.lsp4j.WorkspaceClientCapabilities;
 import org.eclipse.lsp4j.jsonrpc.Launcher;
 import org.eclipse.lsp4j.jsonrpc.ResponseErrorException;
 import org.eclipse.lsp4j.services.LanguageClient;
@@ -72,8 +83,12 @@ class ExerisLanguageServerTest {
         ServerApi remote = connect(new ExerisLanguageServer());
 
         InitializeResult init = remote.initialize(new InitializeParams()).get(5, TimeUnit.SECONDS);
-        assertThat(init.getCapabilities().getTextDocumentSync().getLeft())
-                .isEqualTo(TextDocumentSyncKind.None);
+        // Save notifications on, but no per-keystroke content (change = None): the index reads
+        // disk and only needs to know when a file hit it.
+        TextDocumentSyncOptions sync = init.getCapabilities().getTextDocumentSync().getRight();
+        assertThat(sync.getOpenClose()).isTrue();
+        assertThat(sync.getChange()).isEqualTo(TextDocumentSyncKind.None);
+        assertThat(sync.getSave()).isNotNull();
 
         assertThat(remote.shutdown().get(5, TimeUnit.SECONDS)).isNull();
     }
@@ -166,6 +181,114 @@ class ExerisLanguageServerTest {
                 .hasCauseInstanceOf(ResponseErrorException.class);
     }
 
+    @Test
+    @Timeout(10)
+    @SuppressWarnings("deprecation") // rootUri is deprecated in LSP but the path we must support
+    void didSaveInvalidatesIndexSoNextReadSeesTheNewSource(@TempDir Path workspace) throws Exception {
+        ExerisLanguageServer server = new ExerisLanguageServer();
+        InitializeParams params = new InitializeParams();
+        params.setRootUri(workspace.toUri().toString());
+        server.initialize(params).get(5, TimeUnit.SECONDS);
+        assertThat(server.domains().get(5, TimeUnit.SECONDS)).isEmpty();
+
+        Path account = workspace.resolve("Account.java");
+        Files.writeString(account, ACCOUNT_SOURCE);
+        // The cached (empty) scan is still served until a save invalidates it.
+        assertThat(server.domains().get(5, TimeUnit.SECONDS)).isEmpty();
+
+        server.getTextDocumentService().didSave(new DidSaveTextDocumentParams(
+                new TextDocumentIdentifier(account.toUri().toString())));
+
+        assertThat(server.domains().get(5, TimeUnit.SECONDS))
+                .singleElement()
+                .satisfies(d -> assertThat(d.qualifiedName()).isEqualTo("com.example.bank.Account"));
+    }
+
+    @Test
+    @Timeout(10)
+    @SuppressWarnings("deprecation") // rootUri is deprecated in LSP but the path we must support
+    void didChangeWatchedFilesInvalidatesIndexSoNextReadSeesTheNewSource(@TempDir Path workspace)
+            throws Exception {
+        ExerisLanguageServer server = new ExerisLanguageServer();
+        InitializeParams params = new InitializeParams();
+        params.setRootUri(workspace.toUri().toString());
+        server.initialize(params).get(5, TimeUnit.SECONDS);
+        assertThat(server.domains().get(5, TimeUnit.SECONDS)).isEmpty();
+
+        Path account = workspace.resolve("Account.java");
+        Files.writeString(account, ACCOUNT_SOURCE);
+
+        server.getWorkspaceService().didChangeWatchedFiles(new DidChangeWatchedFilesParams(
+                List.of(new FileEvent(account.toUri().toString(), FileChangeType.Created))));
+
+        assertThat(server.domains().get(5, TimeUnit.SECONDS))
+                .singleElement()
+                .satisfies(d -> assertThat(d.qualifiedName()).isEqualTo("com.example.bank.Account"));
+    }
+
+    @Test
+    @Timeout(10)
+    @SuppressWarnings("deprecation") // rootUri is deprecated in LSP but the path we must support
+    void initializedRegistersJavaWatcherWhenClientSupportsDynamicRegistration(@TempDir Path workspace)
+            throws Exception {
+        RecordingClient recordingClient = new RecordingClient();
+        ExerisLanguageServer server = new ExerisLanguageServer();
+        server.connect(recordingClient);
+
+        InitializeParams params = new InitializeParams();
+        params.setRootUri(workspace.toUri().toString());
+        params.setCapabilities(clientCapabilitiesWithDynamicWatchers(true));
+        server.initialize(params).get(5, TimeUnit.SECONDS);
+
+        server.initialized(new InitializedParams());
+
+        assertThat(recordingClient.registrations)
+                .singleElement()
+                .satisfies(rp -> assertThat(rp.getRegistrations())
+                        .singleElement()
+                        .satisfies(r -> assertThat(r.getMethod())
+                                .isEqualTo("workspace/didChangeWatchedFiles")));
+    }
+
+    @Test
+    @Timeout(10)
+    @SuppressWarnings("deprecation") // rootUri is deprecated in LSP but the path we must support
+    void initializedRegistersNothingWhenClientLacksDynamicRegistration(@TempDir Path workspace)
+            throws Exception {
+        RecordingClient recordingClient = new RecordingClient();
+        ExerisLanguageServer server = new ExerisLanguageServer();
+        server.connect(recordingClient);
+
+        InitializeParams params = new InitializeParams();
+        params.setRootUri(workspace.toUri().toString());
+        params.setCapabilities(clientCapabilitiesWithDynamicWatchers(false));
+        server.initialize(params).get(5, TimeUnit.SECONDS);
+
+        server.initialized(new InitializedParams());
+
+        assertThat(recordingClient.registrations).isEmpty();
+    }
+
+    private static ClientCapabilities clientCapabilitiesWithDynamicWatchers(boolean dynamic) {
+        DidChangeWatchedFilesCapabilities watched = new DidChangeWatchedFilesCapabilities();
+        watched.setDynamicRegistration(dynamic);
+        WorkspaceClientCapabilities workspace = new WorkspaceClientCapabilities();
+        workspace.setDidChangeWatchedFiles(watched);
+        ClientCapabilities capabilities = new ClientCapabilities();
+        capabilities.setWorkspace(workspace);
+        return capabilities;
+    }
+
+    private static final String ACCOUNT_SOURCE = """
+            package com.example.bank;
+
+            import eu.exeris.sdk.annotations.ExerisDomain;
+
+            @ExerisDomain(name = "Account")
+            public class Account {
+            }
+            """;
+
     /** Wires an in-memory client proxy to {@code server} and returns the remote view. */
     private ServerApi connect(ExerisLanguageServer server) throws IOException {
         PipedInputStream serverIn = new PipedInputStream();
@@ -209,6 +332,38 @@ class ExerisLanguageServerTest {
 
     /** Minimal client; the server never calls back on the paths under test. */
     private static final class NoopClient implements LanguageClient {
+        @Override
+        public void telemetryEvent(Object object) {
+        }
+
+        @Override
+        public void publishDiagnostics(PublishDiagnosticsParams diagnostics) {
+        }
+
+        @Override
+        public void showMessage(MessageParams messageParams) {
+        }
+
+        @Override
+        public CompletableFuture<MessageActionItem> showMessageRequest(ShowMessageRequestParams requestParams) {
+            return CompletableFuture.completedFuture(null);
+        }
+
+        @Override
+        public void logMessage(MessageParams message) {
+        }
+    }
+
+    /** Client that records dynamic capability registrations the server pushes during initialized. */
+    private static final class RecordingClient implements LanguageClient {
+        private final List<RegistrationParams> registrations = new ArrayList<>();
+
+        @Override
+        public CompletableFuture<Void> registerCapability(RegistrationParams params) {
+            registrations.add(params);
+            return CompletableFuture.completedFuture(null);
+        }
+
         @Override
         public void telemetryEvent(Object object) {
         }
