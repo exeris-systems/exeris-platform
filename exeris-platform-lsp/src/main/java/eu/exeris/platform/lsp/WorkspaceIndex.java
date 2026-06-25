@@ -16,8 +16,9 @@ import java.util.stream.Stream;
  * canonical {@link DomainMetadata}.
  *
  * <p>Read-only: this is the query side backing the {@code exeris/*} methods; it never
- * writes. The index is built lazily on first query and cached — cache invalidation on
- * {@code didSave}/{@code didChange} is a later slice (see {@link #invalidate()}).
+ * writes. The index is built lazily on first query and cached; {@link #invalidate()} is called
+ * by {@code textDocument/didSave} and {@code workspace/didChangeWatchedFiles} to drop the cache
+ * so the next read re-parses from disk.
  */
 final class WorkspaceIndex {
 
