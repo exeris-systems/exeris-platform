@@ -23,8 +23,11 @@ import java.util.List;
  * <p>We re-implement rather than depend on {@code exeris-codegen-core} on purpose: the runtime must
  * not drag the build-time pipeline onto the SKU classpath. The shared spec is pinned by a golden
  * test vector ({@code CompositionBindingTest}).
+ *
+ * <p>Package-private: SKUs call {@link CompositionStampAssertion}, the only public entry; the binding
+ * is an internal detail kept off the published API surface before the 1.0 freeze.
  */
-public final class CompositionBinding {
+final class CompositionBinding {
 
     private CompositionBinding() {
     }
@@ -32,9 +35,11 @@ public final class CompositionBinding {
     /**
      * Compute the content binding for {@code modules}. Robust to the manifest's array order — the
      * canonical form sorts by {@code qualifiedName} regardless — so a reordered (but otherwise
-     * intact) manifest still binds identically.
+     * intact) manifest still binds identically. Callers must pass well-formed modules (non-null
+     * {@code qualifiedName} and {@code service}/{@code version}); {@link CompositionStampAssertion}
+     * validates that before calling.
      */
-    public static String compute(List<CapManifest.Module> modules) {
+    static String compute(List<CapManifest.Module> modules) {
         List<CapManifest.Module> sorted = modules.stream()
                 .sorted(Comparator.comparing(CapManifest.Module::qualifiedName))
                 .toList();

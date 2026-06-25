@@ -3,9 +3,13 @@ package eu.exeris.platform.composition;
 import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 /** Boot-time assertion behaviour: the four checks + schema-v2 JSON parsing (ADR-024 obligation 8). */
 class CompositionStampAssertionTest {
@@ -124,6 +128,52 @@ class CompositionStampAssertionTest {
         assertThatThrownBy(() -> CompositionStampAssertion.assertConsistent("{ not json"))
                 .isInstanceOf(CompositionStampException.class)
                 .hasMessageContaining("not parseable");
+    }
+
+    @Test
+    void schemaBelowOneThrows() {
+        // A missing/null schemaVersion deserializes to 0 — must be refused, not accepted as "<= 2".
+        List<CapManifest.Module> modules = fixtureModules();
+        CapManifest m = new CapManifest(0,
+                new CapManifest.Stamp(true, "0.0.0", CompositionBinding.compute(modules)), modules);
+        assertThatThrownBy(() -> CompositionStampAssertion.assertConsistent(m))
+                .isInstanceOf(CompositionStampException.class)
+                .hasMessageContaining("range");
+    }
+
+    @Test
+    void nullQualifiedNameIsNamedNotAnNpe() {
+        CapManifest.Stamp wellFormedStamp = new CapManifest.Stamp(true, "0.0.0", "sha256:" + "0".repeat(64));
+        CapManifest m = new CapManifest(2, wellFormedStamp, List.of(
+                new CapManifest.Module(null, new CapManifest.ModuleBody(List.of()))));
+        assertThatThrownBy(() -> CompositionStampAssertion.assertConsistent(m))
+                .isInstanceOf(CompositionStampException.class)
+                .hasMessageContaining("null qualifiedName");
+    }
+
+    @Test
+    void nullProvidedVersionIsNamedNotAnNpeOrSilentDrift() {
+        CapManifest.Stamp wellFormedStamp = new CapManifest.Stamp(true, "0.0.0", "sha256:" + "0".repeat(64));
+        CapManifest m = new CapManifest(2, wellFormedStamp, List.of(
+                new CapManifest.Module("com.app.X", new CapManifest.ModuleBody(
+                        Collections.singletonList(new CapManifest.Provided("com.api.Y", null))))));
+        assertThatThrownBy(() -> CompositionStampAssertion.assertConsistent(m))
+                .isInstanceOf(CompositionStampException.class)
+                .hasMessageContaining("null service or version");
+    }
+
+    @Test
+    void validManifestFromPathPasses(@TempDir Path dir) throws Exception {
+        Path manifest = Files.writeString(dir.resolve("cap-manifest.json"), VALID_JSON);
+        assertThatCode(() -> CompositionStampAssertion.assertConsistent(manifest))
+                .doesNotThrowAnyException();
+    }
+
+    @Test
+    void unreadablePathThrows(@TempDir Path dir) {
+        assertThatThrownBy(() -> CompositionStampAssertion.assertConsistent(dir.resolve("absent.json")))
+                .isInstanceOf(CompositionStampException.class)
+                .hasMessageContaining("cannot read");
     }
 
     // schemaVersion 2 manifest with the golden binding, modules in unsorted array order, and the

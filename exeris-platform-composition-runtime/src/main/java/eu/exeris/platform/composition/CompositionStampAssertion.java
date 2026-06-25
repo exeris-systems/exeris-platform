@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.regex.Pattern;
@@ -89,10 +90,16 @@ public final class CompositionStampAssertion {
         Objects.requireNonNull(classpathServiceVersions, "classpathServiceVersions");
 
         // 1. Handshake — refuse a manifest shape we don't understand rather than mis-assert it.
-        if (manifest.schemaVersion() > KNOWN_SCHEMA_VERSION) {
-            throw new CompositionStampException("cap-manifest schemaVersion " + manifest.schemaVersion()
-                    + " is newer than this composition runtime understands (<= " + KNOWN_SCHEMA_VERSION
-                    + "); upgrade exeris-platform composition runtime in lock-step with the tooling");
+        // Lower bound matters: FAIL_ON_NULL_FOR_PRIMITIVES=false makes a missing/null schemaVersion
+        // deserialize to 0, which must be refused (not silently accepted as "<= 2").
+        int schema = manifest.schemaVersion();
+        if (schema < 1 || schema > KNOWN_SCHEMA_VERSION) {
+            throw new CompositionStampException("cap-manifest schemaVersion " + schema
+                    + " is outside the supported range [1, " + KNOWN_SCHEMA_VERSION + "]"
+                    + (schema > KNOWN_SCHEMA_VERSION
+                            ? " — newer than this runtime understands; upgrade exeris-platform"
+                                    + " composition runtime in lock-step with the tooling"
+                            : " — a missing or pre-ADR-024 manifest"));
         }
 
         // 2. Presence + well-formedness.
@@ -115,6 +122,10 @@ public final class CompositionStampAssertion {
         if (manifest.modules() == null) {
             throw new CompositionStampException("cap-manifest has no modules — cannot verify the binding");
         }
+        // Reject null fields up front so the binding computation can't NPE (null qualifiedName) or
+        // silently diverge ("service@null" hashes to a different binding, masking the real cause as a
+        // generic "binding mismatch"). Both surface as a named CompositionStampException instead.
+        assertModulesWellFormed(manifest.modules());
 
         // 3. Binding-match — the deployed cap set must be the one the stamp attests.
         String computed = CompositionBinding.compute(manifest.modules());
@@ -129,6 +140,32 @@ public final class CompositionStampAssertion {
         // 4. Version-match vs the classpath (multi-manifest / mesh). Empty map ⇒ single-bundled, self-consistent.
         if (!classpathServiceVersions.isEmpty()) {
             assertVersionsMatch(manifest, classpathServiceVersions);
+        }
+    }
+
+    private static void assertModulesWellFormed(List<CapManifest.Module> modules) {
+        for (int i = 0; i < modules.size(); i++) {
+            CapManifest.Module module = modules.get(i);
+            if (module == null) {
+                throw new CompositionStampException("cap-manifest module[" + i + "] is null");
+            }
+            if (module.qualifiedName() == null) {
+                throw new CompositionStampException("cap-manifest module[" + i + "] has a null qualifiedName");
+            }
+            CapManifest.ModuleBody body = module.module();
+            if (body == null || body.provides() == null) {
+                continue;
+            }
+            for (CapManifest.Provided provided : body.provides()) {
+                if (provided == null) {
+                    throw new CompositionStampException(
+                            "module '" + module.qualifiedName() + "' has a null provided entry");
+                }
+                if (provided.service() == null || provided.version() == null) {
+                    throw new CompositionStampException("module '" + module.qualifiedName()
+                            + "' has a provided entry with a null service or version: " + provided);
+                }
+            }
         }
     }
 
@@ -177,6 +214,9 @@ public final class CompositionStampAssertion {
                 CapManifest.ModuleBody body = module.module();
                 if (body != null && body.provides() != null) {
                     for (CapManifest.Provided provided : body.provides()) {
+                        // Last-write-wins on a duplicate service. A well-formed manifest has none
+                        // (the tooling rejects duplicate providers); a duplicate here only arises
+                        // from an already-invalid manifest, where masking a drift warning is moot.
                         versions.put(provided.service(), provided.version());
                     }
                 }
