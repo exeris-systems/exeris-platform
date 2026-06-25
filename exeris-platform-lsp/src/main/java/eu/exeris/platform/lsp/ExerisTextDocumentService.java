@@ -41,8 +41,12 @@ final class ExerisTextDocumentService implements TextDocumentService {
 
     @Override
     public void didSave(DidSaveTextDocumentParams params) {
-        // The buffer just hit disk. Whole-index invalidation is coarse (a later slice can do a
-        // targeted single-file refresh); for now the next read re-scans the workspace.
-        onSourcesChanged.run();
+        // Only .java saves matter — a pom.xml or .md save can't change the domain model, and the
+        // didChangeWatchedFiles watcher is likewise scoped to .java. Whole-index invalidation is
+        // coarse (a later slice can do a targeted single-file refresh); for now the next read
+        // re-scans the workspace.
+        if (params.getTextDocument().getUri().endsWith(".java")) {
+            onSourcesChanged.run();
+        }
     }
 }

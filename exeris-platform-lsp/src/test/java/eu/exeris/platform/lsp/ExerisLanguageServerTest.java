@@ -207,6 +207,26 @@ class ExerisLanguageServerTest {
     @Test
     @Timeout(10)
     @SuppressWarnings("deprecation") // rootUri is deprecated in LSP but the path we must support
+    void didSaveOfNonJavaFileLeavesIndexCached(@TempDir Path workspace) throws Exception {
+        ExerisLanguageServer server = new ExerisLanguageServer();
+        InitializeParams params = new InitializeParams();
+        params.setRootUri(workspace.toUri().toString());
+        server.initialize(params).get(5, TimeUnit.SECONDS);
+        // Populate (and cache) the empty scan.
+        assertThat(server.domains().get(5, TimeUnit.SECONDS)).isEmpty();
+
+        // A domain lands on disk, but the save we report is a non-.java file.
+        Files.writeString(workspace.resolve("Account.java"), ACCOUNT_SOURCE);
+        server.getTextDocumentService().didSave(new DidSaveTextDocumentParams(
+                new TextDocumentIdentifier(workspace.resolve("pom.xml").toUri().toString())));
+
+        // The non-Java save must not invalidate: the stale (empty) cache is still served.
+        assertThat(server.domains().get(5, TimeUnit.SECONDS)).isEmpty();
+    }
+
+    @Test
+    @Timeout(10)
+    @SuppressWarnings("deprecation") // rootUri is deprecated in LSP but the path we must support
     void didChangeWatchedFilesInvalidatesIndexSoNextReadSeesTheNewSource(@TempDir Path workspace)
             throws Exception {
         ExerisLanguageServer server = new ExerisLanguageServer();

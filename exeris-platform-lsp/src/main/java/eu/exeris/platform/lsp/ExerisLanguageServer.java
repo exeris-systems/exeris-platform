@@ -51,9 +51,10 @@ public final class ExerisLanguageServer
     // flag write in shutdown() must be visible to the read in exit() (else a clean shutdown
     // could still exit 1).
     private volatile boolean shutdownRequested;
-    // Captured at initialize, acted on at initialized: whether the client advertised dynamic
-    // registration for workspace/didChangeWatchedFiles.
-    private volatile boolean clientSupportsFileWatchers;
+    // Captured at initialize, read at initialized — both arrive sequentially on the same LSP4J
+    // dispatch thread, so no cross-thread visibility concern (unlike shutdownRequested above):
+    // whether the client advertised dynamic registration for workspace/didChangeWatchedFiles.
+    private boolean clientSupportsFileWatchers;
 
     public ExerisLanguageServer() {
         // Both services share one invalidation hook: a save or an out-of-band disk change drops
