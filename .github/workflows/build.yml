@@ -80,9 +80,16 @@ jobs:
         working-directory: exeris-sdk
         run: mvn -B -ntp -DskipTests -Djapicmp.skip=true install
 
+      # maven.test.skip (not just skipTests): this step exists to put tooling's jars into
+      # the local repo, nothing more. -DskipTests still *compiles* tests, and tooling's
+      # exeris-e2e-tests declares exeris-kernel-{spi,core,community,community-testkit} at
+      # test scope — artifacts this workflow never checks out or installs, since it clones
+      # only exeris-sdk and exeris-tooling. Compiling that module therefore drags the whole
+      # kernel into a build that has no use for it. Skipping test compilation outright
+      # removes the need. Tooling's own CI is what runs tooling's tests.
       - name: Install exeris-tooling to local Maven repo
         working-directory: exeris-tooling
-        run: mvn -B -ntp -DskipTests install
+        run: mvn -B -ntp -Dmaven.test.skip=true install
 
       - name: mvn -B install (exeris-platform)
         working-directory: exeris-platform
