@@ -16,13 +16,21 @@
     <description>Bill of materials for platform modules and third-party deps.</description>
 
     <properties>
-        <!-- Keep in sync with the sibling checkout refs in .github/workflows/build.yml:
-             both exeris-sdk and exeris-tooling track main (SNAPSHOT). The LSP read-only
-             slice consumes exeris-sdk-source-model-io, whose reader/writer ship only as
-             SNAPSHOTs (no -io release tag yet), so we build against the SDK main line.
-             A bump here that forgets the workflow ref will silently build the wrong version. -->
-        <exeris.sdk.version>0.8.0-SNAPSHOT</exeris.sdk.version>
-        <exeris.tooling.version>0.6.0-SNAPSHOT</exeris.tooling.version>
+        <!-- Keep in sync with the sibling checkout refs in .github/workflows/build.yml.
+             A bump here that forgets the workflow ref silently builds the wrong version.
+
+             The SDK is now pinned to a RELEASE (0.10.0) and the workflow checks out the
+             immutable v0.10.0 tag rather than the moving main ref — the same correction
+             exeris-tooling made in its U0. `-io` ships as a release now, so the old
+             "SNAPSHOT-only, so track main" rationale has lapsed. A moving ref lets an
+             unrelated upstream commit turn this build red.
+
+             exeris-tooling has no release carrying what this repo references, so it stays
+             a SNAPSHOT built from main. Note it is currently referenced by
+             dependencyManagement only — no module declares a dependency on
+             exeris-codegen-core and no Java source imports eu.exeris.tooling. -->
+        <exeris.sdk.version>0.10.0</exeris.sdk.version>
+        <exeris.tooling.version>0.7.0-SNAPSHOT</exeris.tooling.version>
 
         <lsp4j.version>0.23.1</lsp4j.version>
 

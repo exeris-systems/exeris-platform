@@ -30,6 +30,12 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
+        # Still 26, and the sequencing is the reason — not inertia. This job builds
+        # exeris-tooling from its `main` ref, and tooling's own enforcer there is still
+        # `[26,27)` (exactly 26). Moving this row to 25 before tooling's JDK 25 LTS
+        # descent merges would fail on tooling's enforcer, not on anything in this repo.
+        # Descend once that lands; the SDK half already permits it (v0.10.0 is
+        # release 25, which builds fine under a 26 JVM).
         java: ['26']
 
     steps:
@@ -38,11 +44,11 @@ jobs:
         with:
           path: exeris-platform
 
-      - name: Checkout exeris-sdk (tracks main — matches exeris.sdk.version 0.8.0-SNAPSHOT in the BOM)
+      - name: Checkout exeris-sdk (v0.10.0 — matches exeris.sdk.version in the BOM)
         uses: actions/checkout@v4
         with:
           repository: exeris-systems/exeris-sdk
-          ref: main
+          ref: v0.10.0
           path: exeris-sdk
 
       - name: Checkout exeris-tooling (SNAPSHOT dep)
@@ -62,9 +68,17 @@ jobs:
           server-username: PACKAGES_READ_USER
           server-password: PACKAGES_READ_TOKEN
 
+      # japicmp.skip mirrors what the SDK's own CI passes, and it is required from v0.10.0
+      # on: that release bound a `semver-gate` japicmp execution to `verify`, which `install`
+      # runs. The gate resolves the previous release jar as its baseline, and `eu.exeris`
+      # artifacts are not on Maven Central yet (deliberately — the SDK does not move to
+      # Central before the kernel does), so a runner has nothing to resolve. An absent
+      # baseline is configured to FAIL rather than report "no breaks found", which is the
+      # correct posture for the SDK and simply not our gate to run: we build its jars to
+      # get artifacts into the local repo, not to police its semver.
       - name: Install exeris-sdk to local Maven repo
         working-directory: exeris-sdk
-        run: mvn -B -ntp -DskipTests install
+        run: mvn -B -ntp -DskipTests -Djapicmp.skip=true install
 
       - name: Install exeris-tooling to local Maven repo
         working-directory: exeris-tooling
