@@ -72,7 +72,6 @@
 
         <module>exeris-studio-backend</module>
         <module>exeris-platform-lsp</module>
-        <module>exeris-platform-composition-runtime</module>
     </modules>
 
     <properties>

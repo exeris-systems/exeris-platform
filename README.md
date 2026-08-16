@@ -36,14 +36,22 @@ Studio (Angular + React)              IntelliJ Plugin           VS Code Extensio
 | [`exeris-studio-backend`](exeris-studio-backend) | Java 26 | Workspace state and a thin REST/HTTP surface for the Studio frontend. **Holds no domain model** — all domain shape lives in `DomainMetadata` accessed via the LSP server. |
 | [`exeris-studio-frontend`](exeris-studio-frontend) | Angular | Studio shell + embedded React editor. Communicates with the LSP server over WebSocket. |
 | [`exeris-platform-lsp`](exeris-platform-lsp) | Java 26 | LSP server hosting `DomainMetadata`, exposing custom Exeris extensions (`exeris/entityModel`, `exeris/applyMutation`, `exeris/listCapabilities`). |
-| [`exeris-platform-composition-runtime`](exeris-platform-composition-runtime) | Java 26 | Boot-time composition validation-stamp **assertion** (ADR-024 obligation 8) — a generic library every SKU bootstrap calls at startup, before any cap `initialize`, to fail fast if the deployed composition is not the one the tooling validated. Asserts, never re-validates; correctness/operability, not a security gate. |
 | `exeris-platform-bom` | — | Bill of materials. |
 | `exeris-platform-parent` | — | Common Maven build configuration. |
 
-> The composition-runtime module extends this repo beyond its design-time core (Studio + LSP):
-> it is the small **runtime** library the open kernel cannot host (the kernel stays cap-blind,
-> ADR-024 obligation 9). The build-time composition contract (DAG validation, stamp emission)
-> stays in `exeris-tooling`; this repo only asserts the stamp at boot.
+> **No composition runtime lives here.** `exeris-platform-composition-runtime` was retired
+> (ADR-024 §Engineering Protocol P0.2): the 2026-06-25 "Composition Runtime Placement" amendment
+> moved the boot conductor and stamp assertion into `exeris-sdk-composition-runtime`, with the
+> manifest schema and the one canonical content-binding implementation in
+> `exeris-sdk-composition-spec` (obligation 8b). The module here was the superseded parallel port,
+> and had silently drifted — it emitted `service@null` where the producer emits `service@` for an
+> unversioned provide, a divergence in the very hash that gates SKU boot, invisible because its
+> golden fixture used only versioned provides. The golden vector survives as the cross-module
+> conformance pin in the SDK's own `CompositionBindingTest`.
+>
+> This repo is the **deploy-time control plane** (obligation 8c) — it *consumes* the composition
+> library for multi-SKU / mesh / multi-host composition; it does not host the in-jar boot runtime.
+> Build-time composition (DAG validation, stamp emission) stays in `exeris-tooling`.
 
 ## Open-core split
 

@@ -107,11 +107,6 @@
                 <artifactId>exeris-platform-lsp</artifactId>
                 <version>${project.version}</version>
             </dependency>
-            <dependency>
-                <groupId>eu.exeris.platform</groupId>
-                <artifactId>exeris-platform-composition-runtime</artifactId>
-                <version>${project.version}</version>
-            </dependency>
 
             <!-- Test deps -->
             <dependency>
