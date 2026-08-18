@@ -42,11 +42,16 @@ jobs:
           ref: v0.10.0
           path: exeris-sdk
 
-      - name: Checkout exeris-tooling (SNAPSHOT dep)
+      # Pinned to the release tag, as exeris-sdk already is. Tracking main was a stopgap
+      # while tooling had no release; v0.7.0 was cut on 2026-08-18 and main became
+      # 0.8.0-SNAPSHOT the same moment, so a main-tracking build stopped producing the
+      # version this repo's BOM asks for. An immutable ref also stops an unrelated upstream
+      # commit from turning this build red.
+      - name: Checkout exeris-tooling (v0.7.0 — matches exeris.tooling.version in the BOM)
         uses: actions/checkout@v4
         with:
           repository: exeris-systems/exeris-tooling
-          ref: main
+          ref: v0.7.0
           path: exeris-tooling
 
       - name: Set up JDK ${{ matrix.java }}
