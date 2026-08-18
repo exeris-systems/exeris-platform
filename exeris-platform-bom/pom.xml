@@ -30,7 +30,7 @@
              dependencyManagement only — no module declares a dependency on
              exeris-codegen-core and no Java source imports eu.exeris.tooling. -->
         <exeris.sdk.version>0.10.0</exeris.sdk.version>
-        <exeris.tooling.version>0.7.0-SNAPSHOT</exeris.tooling.version>
+        <exeris.tooling.version>0.7.0</exeris.tooling.version>
 
         <lsp4j.version>0.23.1</lsp4j.version>
 
