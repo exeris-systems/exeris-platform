@@ -64,9 +64,6 @@ jobs:
           distribution: temurin
           java-version: ${{ matrix.java }}
           cache: maven
-          server-id: github-exeris-kernel
-          server-username: PACKAGES_READ_USER
-          server-password: PACKAGES_READ_TOKEN
 
       # japicmp.skip mirrors what the SDK's own CI passes, and it is required from v0.10.0
       # on: that release bound a `semver-gate` japicmp execution to `verify`, which `install`
@@ -80,16 +77,22 @@ jobs:
         working-directory: exeris-sdk
         run: mvn -B -ntp -DskipTests -Djapicmp.skip=true install
 
-      # maven.test.skip (not just skipTests): this step exists to put tooling's jars into
-      # the local repo, nothing more. -DskipTests still *compiles* tests, and tooling's
-      # exeris-e2e-tests declares exeris-kernel-{spi,core,community,community-testkit} at
-      # test scope — artifacts this workflow never checks out or installs, since it clones
-      # only exeris-sdk and exeris-tooling. Compiling that module therefore drags the whole
-      # kernel into a build that has no use for it. Skipping test compilation outright
-      # removes the need. Tooling's own CI is what runs tooling's tests.
-      - name: Install exeris-tooling to local Maven repo
+      # The module has to leave the reactor, not merely go quiet. tooling's exeris-e2e-tests
+      # declares exeris-kernel-{spi,core,community,community-testkit} at test scope, and
+      # those live on GitHub Packages behind a token this workflow has no reason to hold —
+      # platform itself depends on no kernel artifact and declares no Packages repository.
+      #
+      # Neither -DskipTests nor -Dmaven.test.skip=true is sufficient: Maven collects a
+      # module's dependency graph regardless of whether its tests compile, so the kernel is
+      # still demanded and the build still 401s. That was measured, not assumed — the last
+      # red run carried -Dmaven.test.skip=true and died at `-rf :exeris-e2e-tests`.
+      #
+      # Excluding it drops exactly one module (verified: 0 kernel references in the reduced
+      # reactor vs 4 in the full one) and keeps exeris-codegen-core, the only tooling
+      # artifact the platform BOM manages. Tooling's own CI is what runs tooling's tests.
+      - name: Install exeris-tooling to local Maven repo (kernel-free reactor)
         working-directory: exeris-tooling
-        run: mvn -B -ntp -Dmaven.test.skip=true install
+        run: mvn -B -ntp -DskipTests install -pl '!exeris-e2e-tests'
 
       - name: mvn -B install (exeris-platform)
         working-directory: exeris-platform
