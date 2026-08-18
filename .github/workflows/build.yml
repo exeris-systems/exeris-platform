@@ -13,20 +13,11 @@ jobs:
   java:
     name: mvn install (JDK ${{ matrix.java }})
     runs-on: ubuntu-latest
-    # packages:read is scoped to this job — the frontend job doesn't touch Packages.
-    permissions:
-      contents: read
-      packages: read
-    # Cross-repo GitHub Packages auth. Installing the exeris-tooling sibling
-    # pulls eu.exeris:exeris-kernel-* transitively from the exeris-kernel package
-    # registry; the auto GITHUB_TOKEN can't read another repo's packages, so the
-    # generated settings.xml (see setup-java below) authenticates with the
-    # PACKAGES_READ_TOKEN PAT (read:packages, cross-repo). The username is the org
-    # literal (decoupled from github.actor so a bot/teammate trigger still auths) —
-    # same shape as exeris-kernel/.github/maven-settings.xml.
-    env:
-      PACKAGES_READ_USER: exeris-systems
-      PACKAGES_READ_TOKEN: ${{ secrets.PACKAGES_READ_TOKEN }}
+    # No packages:read, and no Packages credential anywhere in this job. That is the
+    # point rather than an omission: this repo depends on no kernel artifact and
+    # declares no Packages repository in any POM. The credential that used to live
+    # here existed solely to service a transitive demand from a tooling module this
+    # repo does not consume — see the tooling install step below.
     strategy:
       fail-fast: false
       matrix:
@@ -77,22 +68,27 @@ jobs:
         working-directory: exeris-sdk
         run: mvn -B -ntp -DskipTests -Djapicmp.skip=true install
 
-      # The module has to leave the reactor, not merely go quiet. tooling's exeris-e2e-tests
-      # declares exeris-kernel-{spi,core,community,community-testkit} at test scope, and
-      # those live on GitHub Packages behind a token this workflow has no reason to hold —
-      # platform itself depends on no kernel artifact and declares no Packages repository.
+      # Select what this repo needs, rather than subtracting what it does not.
       #
-      # Neither -DskipTests nor -Dmaven.test.skip=true is sufficient: Maven collects a
-      # module's dependency graph regardless of whether its tests compile, so the kernel is
-      # still demanded and the build still 401s. That was measured, not assumed — the last
-      # red run carried -Dmaven.test.skip=true and died at `-rf :exeris-e2e-tests`.
+      # The problem being solved: tooling's exeris-e2e-tests declares
+      # exeris-kernel-{spi,core,community,community-testkit} at test scope, and those live
+      # on GitHub Packages behind a credential this workflow has no reason to hold. Neither
+      # -DskipTests nor -Dmaven.test.skip=true avoids it — Maven collects a module's
+      # dependency graph whether or not its tests compile, so the kernel is still demanded
+      # and the build still 401s. The module must leave the reactor.
       #
-      # Excluding it drops exactly one module (verified: 0 kernel references in the reduced
-      # reactor vs 4 in the full one) and keeps exeris-codegen-core, the only tooling
-      # artifact the platform BOM manages. Tooling's own CI is what runs tooling's tests.
+      # Subtracting it is not enough either, and that was measured: exeris-coverage-aggregate
+      # declares exeris-e2e-tests as a dependency, so `-pl '!exeris-e2e-tests'` merely moved
+      # the failure to `-rf :exeris-coverage-aggregate`. A blacklist also silently breaks
+      # again whenever tooling gains a module.
+      #
+      # An allowlist cannot: -am pulls in exactly the transitive closure of what is named,
+      # so exeris-codegen-core (the only tooling artifact this repo's BOM manages) arrives
+      # via exeris-codegen-maven-plugin -> exeris-codegen-java -> exeris-codegen-core. This
+      # is the same recipe exeris-caps-cors-policy uses and the cap-author guide documents.
       - name: Install exeris-tooling to local Maven repo (kernel-free reactor)
         working-directory: exeris-tooling
-        run: mvn -B -ntp -DskipTests install -pl '!exeris-e2e-tests'
+        run: mvn -B -ntp -DskipTests install -pl exeris-processor,exeris-codegen-maven-plugin -am
 
       - name: mvn -B install (exeris-platform)
         working-directory: exeris-platform
