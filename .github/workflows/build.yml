@@ -13,23 +13,20 @@ jobs:
   java:
     name: mvn install (JDK ${{ matrix.java }})
     runs-on: ubuntu-latest
-    # packages:read is scoped to this job — the frontend job doesn't touch Packages.
-    permissions:
-      contents: read
-      packages: read
-    # Cross-repo GitHub Packages auth. Installing the exeris-tooling sibling
-    # pulls eu.exeris:exeris-kernel-* transitively from the exeris-kernel package
-    # registry; the auto GITHUB_TOKEN can't read another repo's packages, so the
-    # generated settings.xml (see setup-java below) authenticates with the
-    # PACKAGES_READ_TOKEN PAT (read:packages, cross-repo). The username is the org
-    # literal (decoupled from github.actor so a bot/teammate trigger still auths) —
-    # same shape as exeris-kernel/.github/maven-settings.xml.
-    env:
-      PACKAGES_READ_USER: exeris-systems
-      PACKAGES_READ_TOKEN: ${{ secrets.PACKAGES_READ_TOKEN }}
+    # No packages:read, and no Packages credential anywhere in this job. That is the
+    # point rather than an omission: this repo depends on no kernel artifact and
+    # declares no Packages repository in any POM. The credential that used to live
+    # here existed solely to service a transitive demand from a tooling module this
+    # repo does not consume — see the tooling install step below.
     strategy:
       fail-fast: false
       matrix:
+        # Still 26, and the sequencing is the reason — not inertia. This job builds
+        # exeris-tooling from its `main` ref, and tooling's own enforcer there is still
+        # `[26,27)` (exactly 26). Moving this row to 25 before tooling's JDK 25 LTS
+        # descent merges would fail on tooling's enforcer, not on anything in this repo.
+        # Descend once that lands; the SDK half already permits it (v0.10.0 is
+        # release 25, which builds fine under a 26 JVM).
         java: ['26']
 
     steps:
@@ -38,11 +35,11 @@ jobs:
         with:
           path: exeris-platform
 
-      - name: Checkout exeris-sdk (tracks main — matches exeris.sdk.version 0.8.0-SNAPSHOT in the BOM)
+      - name: Checkout exeris-sdk (v0.10.0 — matches exeris.sdk.version in the BOM)
         uses: actions/checkout@v4
         with:
           repository: exeris-systems/exeris-sdk
-          ref: main
+          ref: v0.10.0
           path: exeris-sdk
 
       - name: Checkout exeris-tooling (SNAPSHOT dep)
@@ -58,17 +55,52 @@ jobs:
           distribution: temurin
           java-version: ${{ matrix.java }}
           cache: maven
-          server-id: github-exeris-kernel
-          server-username: PACKAGES_READ_USER
-          server-password: PACKAGES_READ_TOKEN
 
+      # japicmp.skip mirrors what the SDK's own CI passes, and it is required from v0.10.0
+      # on: that release bound a `semver-gate` japicmp execution to `verify`, which `install`
+      # runs. The gate resolves the previous release jar as its baseline, and `eu.exeris`
+      # artifacts are not on Maven Central yet (deliberately — the SDK does not move to
+      # Central before the kernel does), so a runner has nothing to resolve. An absent
+      # baseline is configured to FAIL rather than report "no breaks found", which is the
+      # correct posture for the SDK and simply not our gate to run: we build its jars to
+      # get artifacts into the local repo, not to police its semver.
       - name: Install exeris-sdk to local Maven repo
         working-directory: exeris-sdk
-        run: mvn -B -ntp -DskipTests install
+        run: mvn -B -ntp -DskipTests -Djapicmp.skip=true install
 
-      - name: Install exeris-tooling to local Maven repo
+      # Select what a consumer needs, and name the BOM explicitly.
+      #
+      # The problem: tooling's exeris-e2e-tests declares exeris-kernel-{spi,core,community,
+      # community-testkit} at test scope, and those live on GitHub Packages behind a
+      # credential this workflow has no reason to hold. Three attempts, each measured:
+      #
+      #   -DskipTests / -Dmaven.test.skip=true   Maven collects a module's dependency graph
+      #   whether or not its tests compile, so the kernel is still demanded and the build
+      #   still 401s. The module must leave the reactor, not merely go quiet.
+      #
+      #   -pl '!exeris-e2e-tests'   moves the failure one hop, to -rf :exeris-coverage-aggregate,
+      #   which declares exeris-e2e-tests at provided scope to find its jacoco.exec. A blacklist
+      #   also rots silently: it breaks again whenever tooling gains a module.
+      #
+      #   -pl exeris-processor,exeris-codegen-maven-plugin -am   is forward-safe but omits
+      #   exeris-tooling-bom. The BOM is imported by exeris-tooling-parent inside
+      #   dependencyManagement, and -am traverses parent and dependency edges but not BOM
+      #   imports — so it installs a plugin whose POM cannot be read back. That resolves on a
+      #   developer machine with a warm ~/.m2 and 401s on a clean one, which is what CI always
+      #   has. exeris-caps-cors-policy build 32106825475 died exactly there:
+      #   "exeris-tooling-bom:pom:0.7.0-SNAPSHOT (absent) ... 401".
+      #
+      # Naming the BOM alongside the two entry points keeps the allowlist's forward-safety —
+      # a new tooling module is invisible here unless something named depends on it — and
+      # closes the gap. exeris-codegen-core, the only tooling artifact a consumer's BOM
+      # manages, arrives transitively via exeris-codegen-maven-plugin -> exeris-codegen-java.
+      #
+      # Verified from an empty -Dmaven.repo.local, not a warm one: 7 modules build, the BOM
+      # lands, and a downstream consumer resolves the plugin. Tooling's own CI is what runs
+      # tooling's tests and publishes its coverage.
+      - name: Install exeris-tooling to local Maven repo (kernel-free reactor)
         working-directory: exeris-tooling
-        run: mvn -B -ntp -DskipTests install
+        run: mvn -B -ntp -DskipTests install -pl exeris-tooling-bom,exeris-processor,exeris-codegen-maven-plugin -am
 
       - name: mvn -B install (exeris-platform)
         working-directory: exeris-platform
