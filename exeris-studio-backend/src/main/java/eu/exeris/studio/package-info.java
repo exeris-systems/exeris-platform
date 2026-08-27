@@ -17,8 +17,9 @@
  *   <li>All domain-shape edits flow through the LSP server.</li>
  * </ul>
  *
- * <p>Real implementation lands once {@code exeris-sdk-source-model} grows its
- * parser/writer and {@code exeris-platform-lsp} can host the LSP custom
- * extensions for Exeris.
+ * <p>Both upstream pieces have since landed: the parser/writer ships in
+ * {@code exeris-sdk-source-model-io} (ADR-037), and {@code exeris-platform-lsp}
+ * already hosts the custom {@code exeris/*} extensions. What remains a
+ * placeholder is this module's own workspace-state surface.
  */
 package eu.exeris.studio;
