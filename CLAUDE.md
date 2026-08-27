@@ -12,7 +12,7 @@ The single most load-bearing fact about this repo:
 
 Studio operates **exclusively** on the canonical `DomainMetadata` model defined in [`exeris-sdk-source-model`](../exeris-sdk). The backend deliberately holds **no parallel metamodel**. Corelio-era `EntityDefinition` / `PropertyDefinition` / `RelationDefinition` / `Project` were deleted during the repo split — having two metamodels would have rotted in opposite directions.
 
-**Status:** skeleton. Most modules are placeholders that scaffold the target architecture. Real implementation lands once `exeris-sdk-source-model-io` (ADR-037) ships its JavaParser-based parser/writer — `exeris-sdk-source-model` holds the canonical AST records only, and stays dependency-light (see `ROADMAP.md` 0.2.0+).
+**Status:** uneven, and the docs lag the code. `exeris-platform-lsp` is past scaffold — it already depends on `exeris-sdk-source-model-io` (ADR-037) and ships the read-only `exeris/*` trio plus `exeris/applyMutation` (ADR-042, recorded as *realized in this repo*). The studio-backend and frontend are still largely placeholders. `README.md`'s "skeleton — real implementation lands once …" framing and `ROADMAP.md`'s unchecked 0.3.0 boxes both predate that work: check `exeris-platform-lsp` sources before trusting either on status. For the split of coordinates: `exeris-sdk-source-model-io` holds the JavaParser parser/writer, `exeris-sdk-source-model` the canonical AST records (kept dependency-light).
 
 ## Hard constraints (always enforce)
 
@@ -20,9 +20,9 @@ These are not negotiable.
 
 1. **No parallel metamodel.** The studio-backend holds no domain shape. Anything that looks like a per-repo `EntityDefinition`, `Project`, or `Field` record is a regression — the canonical shape is `DomainMetadata` (in `exeris-sdk-source-model`), accessed via LSP. The deletion of Corelio-era types is documented in the backend `package-info` and is irreversible without an ADR.
 2. **LSP is the wire boundary.** Studio frontend and IDE plugins do NOT call backend Java directly for model questions. They go through `exeris-platform-lsp` over JSON-RPC (stdio for IDE plugins, WebSocket for Studio frontend). The backend's REST/HTTP surface is for workspace state and project management ONLY — never for domain model questions.
-3. **Idempotent write-back.** The LSP server is the only writer to on-disk sources. Mutations go through `exeris/applyMutation` → the `exeris-sdk-source-model-io` writer. Applying the same mutation twice must converge to the same on-disk state — no duplicated imports, no shifted line numbers, no whitespace drift between rounds. This is a contract, not a quality of life feature.
+3. **Idempotent write-back.** The LSP server is the only writer to on-disk sources. Mutations go through `exeris/applyMutation` → the `exeris-sdk-source-model-io` writer; the `MutationOp` / `MutationResult` vocabulary and the conflict semantics are SDK-owned and frozen by ADR-042 — never redefine them platform-side. Applying the same mutation twice must converge to the same on-disk state — no duplicated imports, no shifted line numbers, no whitespace drift between rounds. This is a contract, not a quality of life feature.
 4. **Open-core boundary.** This repo is Apache-2.0. Premium features ship in a separate, closed-source `exeris-platform-enterprise` repository (multi-environment promotion, design-time RBAC, approval workflows, audit dashboards, multi-tenant org management, enterprise-only Studio plugins). Do NOT inline premium-shaped features here — the boundary mirrors the kernel `community / enterprise` split.
-5. **Custom Exeris LSP methods are namespaced under `exeris/`.** Standard LSP methods (`initialize`, `shutdown`, `textDocument/*`, `workspace/*`) follow the spec. Exeris-specific extensions (`exeris/entityModel`, `exeris/applyMutation`, `exeris/listCapabilities`, `exeris/diffPreview`) use the `exeris/` prefix — never invent unprefixed custom methods.
+5. **Custom Exeris LSP methods are namespaced under `exeris/`.** Standard LSP methods (`initialize`, `shutdown`, `textDocument/*`, `workspace/*`) follow the spec; Exeris-specific extensions use the `exeris/` prefix — never invent unprefixed custom methods. The shipped surface is the read-only `exeris/domains`, `exeris/domainDescribe`, `exeris/actions` and the single writer `exeris/applyMutation` (ADR-042). **Read the method names off the `@JsonRequest` annotations in `exeris-platform-lsp/src/main/java/eu/exeris/platform/lsp/ExerisProtocolExtensions.java`, not off a doc.** `ROADMAP.md` 0.3.0 still lists `exeris/entityModel`, `exeris/listCapabilities` and `exeris/diffPreview` as unchecked boxes and `README.md`'s module table repeats two of them — none of the three ever shipped under those names. The four that did ship are live wire contracts consumed by `exeris-ai-bridge` (ADR-025); renaming or reshaping one is an ADR-level change, not an edit.
 
 ## Strong defaults (justified exceptions allowed)
 
@@ -34,7 +34,7 @@ These are not negotiable.
 
 ## Scoped bans
 
-- **No `EntityDefinition` / `PropertyDefinition` / `RelationDefinition` / `Project` records in `exeris-studio-backend`** — Corelio-era types are deliberately deleted; their reintroduction is a regression.
+- **No `EntityDefinition` / `PropertyDefinition` / `RelationDefinition` / `Project` / `ProjectStatus` records in `exeris-studio-backend`** — the full list of deliberately-deleted Corelio-era types is in that module's `package-info.java`; their reintroduction is a regression.
 - **No domain-model REST endpoints in `exeris-studio-backend`** — domain shape comes over LSP, not over backend HTTP.
 - **No direct file write-back from Studio frontend** — mutations flow Studio → LSP → `exeris-sdk-source-model-io` writer → disk. The frontend never edits `.java` files directly.
 - **No premium / enterprise feature inlined into open-core modules** — multi-environment, RBAC, approval workflows, audit dashboards, multi-tenant — these belong in `exeris-platform-enterprise`.
@@ -60,6 +60,7 @@ ADRs to consult cross-repo:
 - **ADR-020** (Visibility taxonomy: `public` / `enterprise-private`) — applies when documenting any feature with an enterprise counterpart.
 - **ADR-024** (Capability Composition Model) — fixes this repo's role as the deploy-time control plane and keeps composition runtime code out of it. See the scoped ban above.
 - **ADR-037** (`exeris-sdk-source-model-io`) — the parser/writer coordinate the LSP must depend on; the AST records stay in `exeris-sdk-source-model`.
+- **ADR-042** (Bidirectional mutation surface) — the ADR most directly load-bearing for hard constraint 3: it freezes `exeris/applyMutation`'s wire shape, the `MutationOp` vocabulary, conflict detection and baseline-trust gating. Already realized here; consult before touching the write-back path.
 - **ADR-025** (AI Agent Bridge) — `exeris-ai-bridge` consumes the LSP surface of this repo for its `lsp:*` tool family. LSP shape changes are visible to that ADR.
 
 A change to LSP method surface (add / remove / rename `exeris/*` method, change wire shape of `MutationOp`), to the open-core boundary, or to the idempotent-write-back contract → **trigger an ADR**, don't just edit code.
