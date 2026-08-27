@@ -4,9 +4,11 @@ The user-facing platform of Exeris: Studio (Angular shell + embedded React
 editor), backend services, and the LSP server that powers bidirectional sync
 between Studio, IDE plugins, and on-disk `@ExerisDomain` sources.
 
-> **Status:** skeleton. Most modules are placeholders that scaffold the target
-> architecture. Real implementation lands once `exeris-sdk-source-model-io`
-> (ADR-037) ships its JavaParser-based parser/writer.
+> **Status:** uneven. `exeris-platform-lsp` is past scaffold — it depends on
+> `exeris-sdk-source-model-io` (ADR-037) and ships the read-only `exeris/*` trio
+> plus `exeris/applyMutation` (ADR-042). `exeris-studio-backend` and
+> `exeris-studio-frontend` are still placeholders that scaffold the target
+> architecture below.
 
 ## Architecture (target)
 
@@ -35,7 +37,7 @@ Studio (Angular + React)              IntelliJ Plugin           VS Code Extensio
 |---|---|---|
 | [`exeris-studio-backend`](exeris-studio-backend) | Java 26 | Workspace state and a thin REST/HTTP surface for the Studio frontend. **Holds no domain model** — all domain shape lives in `DomainMetadata` accessed via the LSP server. |
 | [`exeris-studio-frontend`](exeris-studio-frontend) | Angular | Studio shell + embedded React editor. Communicates with the LSP server over WebSocket. |
-| [`exeris-platform-lsp`](exeris-platform-lsp) | Java 26 | LSP server hosting `DomainMetadata`, exposing custom Exeris extensions (`exeris/entityModel`, `exeris/applyMutation`, `exeris/listCapabilities`). |
+| [`exeris-platform-lsp`](exeris-platform-lsp) | Java 26 | LSP server hosting `DomainMetadata`, exposing the custom Exeris extensions declared in [`ExerisProtocolExtensions`](exeris-platform-lsp/src/main/java/eu/exeris/platform/lsp/ExerisProtocolExtensions.java): read-only `exeris/domains`, `exeris/domainDescribe`, `exeris/actions`, and the single writer `exeris/applyMutation`. |
 | `exeris-platform-bom` | — | Bill of materials. |
 | `exeris-platform-parent` | — | Common Maven build configuration. |
 

@@ -23,8 +23,8 @@ This file tracks scope per milestone. Items marked `[ ]` are open; `[x]` shipped
 
 > Goal: green CI from a fresh clone, LSP server speaks the LSP base protocol.
 
-- [ ] **CI** — `.github/workflows/build.yml` (clones SDK + tooling, installs both, then `mvn install` + `npm run build` in parallel jobs)
-- [ ] **`exeris-platform-lsp` skeleton** — LSP4J server, JSON-RPC over stdio, `initialize`/`shutdown` handlers, no Exeris-specific methods yet
+- [x] **CI** — `.github/workflows/build.yml` (clones SDK + tooling, installs both, then `mvn install` + `npm run build` in parallel jobs)
+- [x] **`exeris-platform-lsp` skeleton** — LSP4J server, JSON-RPC over stdio, `initialize`/`shutdown` handlers (Exeris-specific methods followed in 0.3.0)
 - [x] **Pre-publish POM metadata** — root POM now declares `<url>`, `<organization>`, `<licenses>`, `<developers>`, `<scm>`, `<issueManagement>`, `<distributionManagement>` (Sonatype Central Portal). Required by Maven Central
 - [ ] **Sibling-repo orchestration** — documented or solved (currently CI does in-job clone+install per repo; longer-term consider SNAPSHOT registry)
 
@@ -32,11 +32,18 @@ This file tracks scope per milestone. Items marked `[ ]` are open; `[x]` shipped
 
 > Goal: Studio + IDE plugins can query the canonical model and apply mutations through one wire surface.
 
-- [ ] `exeris/entityModel` — return current `DomainMetadata` for a workspace path
-- [ ] `exeris/applyMutation` — apply a `MutationOp` (from SDK 0.5.0) and return `MutationResult`
-- [ ] `exeris/listCapabilities` — enumerate `@Capability` annotations in workspace (from SDK 0.4.0)
-- [ ] `exeris/diffPreview` — pre-mutation diff against on-disk sources
+- [x] `exeris/domains` — list the domain identities in the workspace
+- [x] `exeris/domainDescribe` — full read-only view of one domain, projected from `DomainMetadata`
+- [x] `exeris/actions` — enumerate actions with their owning domain
+- [x] `exeris/applyMutation` — apply one `MutationOp` and return `MutationResult` (ADR-042)
 - [ ] WebSocket transport (Studio frontend) alongside stdio transport (IDE plugins)
+
+> The read surface shipped as the `exeris/domains` + `exeris/domainDescribe` + `exeris/actions`
+> trio rather than the single `exeris/entityModel` this milestone originally named. Two other
+> planned names never shipped: `exeris/diffPreview`'s intent is now tracked as pre-apply preview
+> at 0.8.0, and `exeris/listCapabilities` has neither a method nor a milestone — reopen it
+> deliberately if Studio needs capability enumeration. Method names are authoritative in
+> `ExerisProtocolExtensions.java`, not in this file.
 
 ## 0.4.0 — Studio frontend wired to LSP
 
@@ -70,7 +77,7 @@ This file tracks scope per milestone. Items marked `[ ]` are open; `[x]` shipped
 
 - [ ] IntelliJ plugin scaffold (`com.intellij.plugin.lsp` integration)
 - [ ] VS Code extension scaffold
-- [ ] Plugins surface `exeris/listCapabilities`, `exeris/diffPreview`
+- [ ] Plugins surface the shipped `exeris/*` read methods (`exeris/domains`, `exeris/domainDescribe`, `exeris/actions`)
 - [ ] Hot-reload of LSP server during plugin development
 
 ## 0.8.0 — multi-file change preview, undo/redo
