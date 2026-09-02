@@ -19,18 +19,19 @@
         <!-- Keep in sync with the sibling checkout refs in .github/workflows/build.yml.
              A bump here that forgets the workflow ref silently builds the wrong version.
 
-             The SDK is now pinned to a RELEASE (0.10.0) and the workflow checks out the
-             immutable v0.10.0 tag rather than the moving main ref — the same correction
-             exeris-tooling made in its U0. `-io` ships as a release now, so the old
-             "SNAPSHOT-only, so track main" rationale has lapsed. A moving ref lets an
-             unrelated upstream commit turn this build red.
+             Both are pinned to RELEASES and both workflows check out the immutable tags
+             rather than a moving ref — a moving ref lets an unrelated upstream commit turn
+             this build red.
 
-             exeris-tooling has no release carrying what this repo references, so it stays
-             a SNAPSHOT built from main. Note it is currently referenced by
-             dependencyManagement only — no module declares a dependency on
-             exeris-codegen-core and no Java source imports eu.exeris.tooling. -->
-        <exeris.sdk.version>0.10.0</exeris.sdk.version>
-        <exeris.tooling.version>0.7.0</exeris.tooling.version>
+             exeris-tooling is still referenced by dependencyManagement ONLY: no module
+             declares a dependency on exeris-codegen-core and no Java source imports
+             eu.exeris.tooling. That is the dogfooding gap, not an oversight. 0.8.0 is what
+             makes closing it possible: it carries exeris-codegen-ts (`@exeris/codegen-ts`,
+             an npm package outside this reactor and versioned separately, hence absent from
+             the tooling POM's <modules>), which generates an Angular 21 front from the same
+             exeris-metadata/*.json corpus codegen-java reads. -->
+        <exeris.sdk.version>0.11.0</exeris.sdk.version>
+        <exeris.tooling.version>0.8.0</exeris.tooling.version>
 
         <lsp4j.version>0.23.1</lsp4j.version>
 
@@ -45,9 +46,13 @@
              (JsonMapper.builder + readValue/writeValueAsString/valueToTree), and the mutation
              polymorphism is the SAFE form — @JsonTypeInfo(use=Id.NAME) over a closed @JsonSubTypes
              allowlist (9 ops), never default typing — so these deserialization CVEs are not
-             reachable in our path; we bump anyway to keep the Snyk gate clean. Importing the SDK
-             BOM is NOT an option until it bumps (it would pull a vulnerable version back in); drop
-             this explicit pin once the SDK BOM is >= 3.2.0.
+             reachable in our path; we bump anyway to keep the Snyk gate clean.
+
+             UPDATE at the 0.11.0 bump: the SDK BOM is now on 3.2.0 as well, so the condition this
+             note set for dropping the pin is met — and the pin stays anyway, because this repo does
+             not import the SDK BOM at all. Dropping it would leave jackson unmanaged rather than
+             managed by the SDK. Importing that BOM is now unblocked and is a separate decision;
+             until someone takes it, this line is what pins jackson.
              gson is LSP4J's own JSON layer; pinned so the JsonElement wire boundary is explicit. -->
         <jackson.version>3.2.0</jackson.version>
         <gson.version>2.11.0</gson.version>

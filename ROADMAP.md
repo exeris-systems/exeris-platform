@@ -37,7 +37,7 @@ This file tracks scope per milestone. Items marked `[ ]` are open; `[x]` shipped
       `-SNAPSHOT` coordinate, so publishing per merge yields artifacts that share a coordinate and
       differ in content. Maven Central rides the same tag when it is wired (see 1.0.0)
 - [x] **JDK floor at 25** — the reactor compiles to `release 25`, matching `exeris-kernel`,
-      `exeris-sdk` v0.10.0 and `exeris-tooling` v0.7.0, so a consumer running the launcher beside
+      `exeris-sdk` v0.11.0 and `exeris-tooling` v0.8.0, so a consumer running the launcher beside
       `exeris-kernel-diagnostics-cli` has one JDK requirement rather than two. CI builds 25 and 26
 - [ ] **Sibling-repo orchestration** — documented or solved (currently CI does in-job clone+install per repo; longer-term consider SNAPSHOT registry)
 
