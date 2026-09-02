@@ -61,9 +61,11 @@ This file tracks scope per milestone. Items marked `[ ]` are open; `[x]` shipped
 
 > Goal: Studio shows entities and lets users do read-only inspection.
 
-- [ ] WebSocket transport (Studio frontend) alongside stdio transport (IDE plugins) — moved here
+- [x] WebSocket transport (Studio frontend) alongside stdio transport (IDE plugins) — moved here
       from 0.3.0: 0.3.0's goal is the method surface, and the transport exists to serve the very
-      frontend this milestone wires up. Same JSON-RPC surface on both transports, never a fork
+      frontend this milestone wires up. Same JSON-RPC surface on both transports, never a fork.
+      One launcher serves both (`--websocket`), one `ExerisLanguageServer` per session, and
+      `exit` closes the session rather than the process. Binds loopback by default
 - [ ] Workspace tree view (entities, capabilities, sagas)
 - [ ] Entity detail view (fields, actions, relationships) — read-only
 - [ ] Tailwind-based component library (using `exeris-sdk-ui-kit` preset)

@@ -99,10 +99,23 @@ mvn -pl exeris-platform-lsp exec:java
 **From the launcher** — one self-contained jar, no source tree, no Maven, JDK 25 or newer:
 
 ```bash
-java -jar exeris-platform-lsp-<version>-standalone.jar
+java -jar exeris-platform-lsp-<version>-standalone.jar                    # stdio
+java -jar exeris-platform-lsp-<version>-standalone.jar --websocket        # ws://127.0.0.1:5007/lsp
 ```
 
-It speaks JSON-RPC over stdio, which is what every LSP client ultimately consumes.
+Two transports, one method surface. stdio is the default and what IDE plugins and
+`exeris-ai-bridge` spawn; Studio uses the WebSocket, because a browser cannot spawn a
+process. `exeris/domains`, `exeris/domainDescribe`, `exeris/actions` and
+`exeris/applyMutation` behave identically on both — forking the surface per transport is
+exactly what the platform contract forbids.
+
+> **The WebSocket binds `127.0.0.1` by default, and that is the access control.** It carries
+> `exeris/applyMutation`, which writes `.java` files under the workspace root the client names
+> at `initialize`, and LSP has no authentication. `--host` exists for containers and remote dev
+> boxes; off loopback this is a remote write path, and the launcher says so in its log.
+
+`--port` (default 5007) matches the `/lsp` route in `exeris-studio-frontend/proxy.conf.json`,
+so `ng serve` and the launcher line up with no extra configuration.
 `mvn install` builds the launcher into `exeris-platform-lsp/target/`; released versions
 are attached to the [GitHub release](https://github.com/exeris-systems/exeris-platform/releases)
 and published to GitHub Packages under classifier `standalone`. Fetch it from Packages

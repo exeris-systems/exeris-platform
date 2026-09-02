@@ -41,6 +41,44 @@
             <groupId>com.google.code.gson</groupId>
             <artifactId>gson</artifactId>
         </dependency>
+
+        <!-- WebSocket transport (Studio frontend). The endpoint binding is LSP4J's; Tyrus is the
+             container that hosts it. Nothing on the stdio path touches either, but they ship in
+             the same jar so one launcher serves both transports. Jetty and not Tyrus because only
+             Jetty actually binds the host it is told to; see the BOM for the measurement. -->
+        <dependency>
+            <groupId>org.eclipse.lsp4j</groupId>
+            <artifactId>org.eclipse.lsp4j.websocket.jakarta</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>jakarta.websocket</groupId>
+            <artifactId>jakarta.websocket-api</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.eclipse.jetty.ee10.websocket</groupId>
+            <artifactId>jetty-ee10-websocket-jakarta-server</artifactId>
+            <exclusions>
+                <!-- Annotation scanning and the webapp deployment model, neither of which this
+                     server uses: the endpoint is registered programmatically in
+                     LspWebSocketServer, so nothing ever scans a classpath for @ServerEndpoint.
+                     Pulling it in drags jetty-ee10-plus, jetty-ee10-webapp, jetty-jndi,
+                     jetty-xml and the CDI / EL / interceptor / transaction API jars into a jar
+                     whose whole purpose is to be `java -jar`-able. Measured: 10.45 MB shaded
+                     with the branch, 9.54 MB without. LauncherIT and WebSocketLauncherIT run the
+                     shaded jar, so a wrong exclusion here fails the build rather than a user. -->
+                <exclusion>
+                    <groupId>org.eclipse.jetty.ee10</groupId>
+                    <artifactId>jetty-ee10-annotations</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>
+        <!-- Re-declared because the exclusion above removes the branch that supplied it, and the
+             servlet API is genuinely needed: ServletContextHandler is the deployment surface the
+             Jakarta WebSocket initializer configures. -->
+        <dependency>
+            <groupId>jakarta.servlet</groupId>
+            <artifactId>jakarta.servlet-api</artifactId>
+        </dependency>
         <dependency>
             <groupId>tools.jackson.core</groupId>
             <artifactId>jackson-databind</artifactId>
@@ -154,9 +192,13 @@
                                      ServiceLoader). What does carry service files is Jackson 3 —
                                      tools.jackson.databind.ObjectMapper and
                                      tools.jackson.core.TokenStreamFactory. They name different
-                                     interfaces today, so nothing collides yet; the transformer is
-                                     here so that a second provider for either one merges instead
-                                     of one file overwriting the other. -->
+                                     interfaces, and since the WebSocket transport landed so do
+                                     jakarta.websocket.ContainerProvider and
+                                     ServerEndpointConfig$Configurator — which is how the Jakarta
+                                     WebSocket runtime finds its implementation at all. Nothing
+                                     collides between them today, but the transport now depends on
+                                     these files surviving the merge, so this is load-bearing
+                                     rather than precautionary. -->
                                 <transformer implementation="org.apache.maven.plugins.shade.resource.ServicesResourceTransformer"/>
                             </transformers>
                             <filters>

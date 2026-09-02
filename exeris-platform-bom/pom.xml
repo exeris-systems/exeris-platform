@@ -34,6 +34,32 @@
 
         <lsp4j.version>0.23.1</lsp4j.version>
 
+        <!-- WebSocket transport for the Studio frontend (stdio stays the IDE-plugin transport).
+
+             Jetty rather than Tyrus, and the reason is measured, not stylistic. Tyrus is the
+             Jakarta WebSocket reference implementation and embeds in fewer lines, but its
+             standalone `Server(host, port, ...)` does not bind the host it is given:
+             TyrusGrizzlyServerContainer constructs `new NetworkListener("grizzly", "0.0.0.0", port)`
+             unconditionally and the hostName argument reaches only a log line. Verified by running
+             it — the server announced ws://127.0.0.1:5007 while Grizzly logged
+             "Started listener bound to [0.0.0.0:5007]". For a socket that carries
+             exeris/applyMutation, a bind address that silently means "every interface" is not a
+             detail. Jetty's ServerConnector.setHost is a first-class, documented knob.
+
+             ee10 = Jakarta EE 10 = jakarta.websocket 2.1, which matches the API pinned below.
+             12.0.x is the stable line; 12.1.0 is still alpha.
+
+             jakarta.websocket-api is pinned DELIBERATELY: lsp4j.websocket.jakarta declares 2.0.0
+             and the Jetty stack pulls 2.1.x — one API, two versions, resolved by Maven's
+             nearest-wins. That is the shape that broke exeris-kernel-diagnostics-cli 0.11.0 (two
+             Jacksons sharing one annotations artifact, nearest-wins picking the older), so it is
+             named here rather than left to resolution order. 2.1.1 is the higher of the two and a
+             superset of the 2.0 API lsp4j compiles against. -->
+        <jetty.version>12.0.21</jetty.version>
+        <jakarta.websocket.version>2.1.1</jakarta.websocket.version>
+        <!-- Jakarta EE 10's servlet API, matching the Jetty ee10 line above. -->
+        <jakarta.servlet.version>6.0.0</jakarta.servlet.version>
+
         <!-- exeris/applyMutation transports the SDK-owned MutationOp / MutationResult shapes,
              which are Jackson-polymorphic (op/outcome discriminators). LSP4J serializes with
              Gson (which ignores @JsonTypeInfo), so the server (de)serializes those payloads with
@@ -81,6 +107,30 @@
                 <groupId>org.eclipse.lsp4j</groupId>
                 <artifactId>org.eclipse.lsp4j</artifactId>
                 <version>${lsp4j.version}</version>
+            </dependency>
+
+            <!-- WebSocket transport: LSP4J's Jakarta binding plus the Tyrus container that
+                 hosts it. Same JSON-RPC surface as stdio — the transport changes, the methods
+                 do not. -->
+            <dependency>
+                <groupId>org.eclipse.lsp4j</groupId>
+                <artifactId>org.eclipse.lsp4j.websocket.jakarta</artifactId>
+                <version>${lsp4j.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>jakarta.websocket</groupId>
+                <artifactId>jakarta.websocket-api</artifactId>
+                <version>${jakarta.websocket.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.eclipse.jetty.ee10.websocket</groupId>
+                <artifactId>jetty-ee10-websocket-jakarta-server</artifactId>
+                <version>${jetty.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>jakarta.servlet</groupId>
+                <artifactId>jakarta.servlet-api</artifactId>
+                <version>${jakarta.servlet.version}</version>
             </dependency>
 
             <!-- JSON: gson is LSP4J's wire layer (JsonElement boundary for exeris/applyMutation);

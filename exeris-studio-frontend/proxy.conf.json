@@ -15,5 +15,26 @@
     "secure": false,
     "changeOrigin": true,
     "logLevel": "debug"
+  },
+
+  // The LSP server's WebSocket transport. Studio asks the LSP for every domain-model
+  // question; /api above is workspace state only, and the two must not be confused.
+  //
+  // Start the server beside `ng serve`:
+  //   java -jar exeris-platform-lsp-<version>-standalone.jar --websocket
+  //
+  // "ws": true is what makes this a WebSocket upgrade rather than a plain HTTP forward —
+  // without it the handshake 404s and the client reports a connection failure with nothing
+  // in the server log, because the request never reaches the server.
+  //
+  // 5007 is the launcher's default port, and it binds loopback by default. Do not "fix" a
+  // container setup by pointing this at a routable address: the socket carries
+  // exeris/applyMutation, which writes .java files, and LSP has no authentication.
+  "/lsp": {
+    "target": "http://localhost:5007",
+    "ws": true,
+    "secure": false,
+    "changeOrigin": true,
+    "logLevel": "debug"
   }
 }

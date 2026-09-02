@@ -4,7 +4,9 @@ import com.google.gson.JsonElement;
 import java.net.URI;
 import java.nio.file.Path;
 import java.util.List;
+import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
+import java.util.function.IntConsumer;
 import org.eclipse.lsp4j.ClientCapabilities;
 import org.eclipse.lsp4j.DidChangeWatchedFilesRegistrationOptions;
 import org.eclipse.lsp4j.FileSystemWatcher;
@@ -46,6 +48,16 @@ public final class ExerisLanguageServer
     private final WorkspaceService workspaceService;
     private final MutationApplyService mutationService = new MutationApplyService();
 
+    /**
+     * What {@code exit} actually does, given the exit code the LSP spec prescribes.
+     *
+     * <p>Injected rather than hardcoded because the two transports need different answers. On
+     * stdio the process <em>is</em> the session, so ending the process is correct. On a WebSocket
+     * one process serves many sessions, and {@code System.exit} would let any one client take the
+     * server down for every other — so that transport closes its own socket instead.
+     */
+    private final IntConsumer exitAction;
+
     private LanguageClient client;
 
     private volatile WorkspaceIndex index;
@@ -58,7 +70,17 @@ public final class ExerisLanguageServer
     // whether the client advertised dynamic registration for workspace/didChangeWatchedFiles.
     private boolean clientSupportsFileWatchers;
 
+    /** A server whose {@code exit} ends the JVM — the stdio contract. */
     public ExerisLanguageServer() {
+        this(System::exit);
+    }
+
+    /**
+     * @param exitAction what {@code exit} does with the spec's exit code (0 after a clean
+     *                   {@code shutdown}, 1 otherwise)
+     */
+    public ExerisLanguageServer(IntConsumer exitAction) {
+        this.exitAction = Objects.requireNonNull(exitAction, "exitAction");
         // Both services share one invalidation hook: a save or an out-of-band disk change drops
         // the cached scan so the next read re-parses from disk.
         this.textDocumentService = new ExerisTextDocumentService(this::invalidateIndex);
@@ -189,8 +211,9 @@ public final class ExerisLanguageServer
 
     @Override
     public void exit() {
-        // Per the LSP spec: exit 0 if shutdown was requested first, otherwise 1.
-        System.exit(shutdownRequested ? 0 : 1);
+        // Per the LSP spec: exit 0 if shutdown was requested first, otherwise 1. What "exit"
+        // means is the transport's to decide — see exitAction.
+        exitAction.accept(shutdownRequested ? 0 : 1);
     }
 
     @Override
