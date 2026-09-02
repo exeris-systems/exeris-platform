@@ -45,6 +45,12 @@ This file tracks scope per milestone. Items marked `[ ]` are open; `[x]` shipped
 
 > Goal: Studio + IDE plugins can query the canonical model and apply mutations through one wire surface.
 
+> **Complete, and deliberately never tagged.** Everything below shipped, but no `v0.3.0` release
+> was cut: there was no consumer waiting on a 0.3.0 artifact, and a release exists to be consumed,
+> not to mark a checkbox. Its content ships inside the first real cut, `v0.4.0`. The trunk line
+> therefore went `0.3.0-SNAPSHOT` → `0.4.0-SNAPSHOT` without a tag in between — which is the one
+> case the cut procedure below does not otherwise cover.
+
 - [x] `exeris/domains` — list the domain identities in the workspace
 - [x] `exeris/domainDescribe` — full read-only view of one domain, projected from `DomainMetadata`
 - [x] `exeris/actions` — enumerate actions with their owning domain
@@ -140,6 +146,9 @@ The reactor version names the release the current line will *become*, so trunk s
 `<next>-SNAPSHOT` and `main` never carries a release version.
 
 1. Finish the milestone's scope and tick its boxes here.
+   A completed milestone does **not** have to be tagged — 0.3.0 was not. Tag when something
+   downstream needs the artifact; otherwise let the content ride the next cut and move the trunk
+   line straight on, as `0.3.0-SNAPSHOT` → `0.4.0-SNAPSHOT` did.
 2. Push the tag: `git tag v<x.y.z> && git push origin v<x.y.z>`. `publish.yml` refuses a tag that
    does not match the trunk's line, that is not on `main`, or whose `LauncherIT` fails — so a
    mistyped tag costs nothing.
