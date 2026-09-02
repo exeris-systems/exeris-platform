@@ -72,7 +72,9 @@ This file tracks scope per milestone. Items marked `[ ]` are open; `[x]` shipped
       frontend this milestone wires up. Same JSON-RPC surface on both transports, never a fork
 - [ ] Workspace tree view (entities, capabilities, sagas)
 - [ ] Entity detail view (fields, actions, relationships) — read-only
-- [ ] Tailwind-based component library (using `exeris-sdk-ui-kit` preset)
+- [ ] Tailwind-based component library on the SDK's UI kit — npm package `@exeris-systems/ui-kit`
+      (the `exeris-sdk-ui-kit` directory in `exeris-sdk`), wired through its CSS `@theme` entry
+      rather than a JS preset, which Tailwind v4 removed
 - [ ] Routing for `/workspace/:path/entity/:name`
 
 ## 0.5.0 — Studio editing

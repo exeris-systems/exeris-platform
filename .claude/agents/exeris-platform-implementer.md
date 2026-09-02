@@ -19,7 +19,7 @@ Delivery agent for writing and refactoring platform code without re-litigating a
 ## Coding Defaults
 - Backend: constructor injection, immutable config, explicit lifecycle. Workspace-state endpoints only.
 - LSP: idempotent handlers; mutations through the `exeris-sdk-source-model` writer; method-shape responses are `MutationOp` / `MutationResult` from the SDK (don't redefine).
-- Frontend: Tailwind via `exeris-sdk-ui-kit` preset (0.4.0+); Angular workspace conventions in `angular.json`; embedded React editor isolated to its mount point; communicate with LSP over WebSocket using the same JSON-RPC method names as IDE plugins.
+- Frontend: Tailwind via the SDK UI kit — npm `@exeris-systems/ui-kit`, CSS `@theme` entry (v4 dropped JS presets) (0.4.0+); Angular workspace conventions in `angular.json`; embedded React editor isolated to its mount point; communicate with LSP over WebSocket using the same JSON-RPC method names as IDE plugins.
 - Cross-build coordination is explicit: `mvn install` then `npm run build`; the frontend `package.json` engines field pins Node 24+.
 
 ## Verification

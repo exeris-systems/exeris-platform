@@ -55,20 +55,37 @@ public interface ExerisProtocolExtensions {
      *       the same "not carried" state spelled two different ways, upstream.</li>
      * </ul>
      *
-     * <p>So the question this method's next change has to answer is <em>not</em> "which fields to
-     * add". It is <b>how the shape distinguishes "there are none" from "this pipeline does not
-     * carry them"</b>. The bridge validates and re-emits contract fields, so pinning
-     * {@code projections} would hand every agent {@code projections: []} on every domain, which
-     * reads as "this domain declares no projections" — a confident falsehood, frozen into a wire
-     * format, where an absent field would have said nothing at all.
+     * <p>The distinction between "there are none" and "this pipeline does not carry them" is
+     * therefore load-bearing — and it does <b>not</b> need inventing here, which is the easy
+     * mistake. {@code DomainMetadata} is annotated {@code @JsonInclude(NON_NULL)}: a null facet is
+     * omitted from the wire, an empty list is serialized as {@code []}. Null already means "not
+     * carried" and {@code []} already means "none". Gson, which LSP4J uses on this method's
+     * response, omits nulls by default too, so the same reading survives our transport.
      *
-     * <p>The ecosystem has already decided this once, one level up: the processor's
-     * {@code UNREAD_NOTES} deliberately separates <em>reserved</em> from merely <em>unbuilt</em>
-     * because "an author deserves to know which one they have hit". Same distinction, and the same
-     * argument for spending words on it, at the wire instead of at the diagnostic.
+     * <p>Two things follow, and only one of them is ours.
      *
-     * <p>Widening therefore triggers an ADR, and this paragraph is its input rather than something
-     * to be rediscovered at review.
+     * <ul>
+     *   <li><b>Ours:</b> a widened {@link DomainDescription} must <em>propagate</em> that
+     *       distinction rather than flatten it. Projecting a null facet into an empty list
+     *       manufactures {@code projections: []} where the model said nothing — and the bridge
+     *       validates and re-emits contract fields, so an agent would read that as "this domain
+     *       declares no projections". A confident falsehood, frozen into a wire format, where
+     *       silence was available.</li>
+     *   <li><b>Upstream's:</b> the convention exists but is applied inconsistently —
+     *       {@code GraphMetadata} passes {@code properties} as null and {@code queries} as an empty
+     *       list for the same "not carried" state. That is a tooling ask, not something to paper
+     *       over with a platform-local convention on top of a model this repo does not own.</li>
+     * </ul>
+     *
+     * <p>Widening this method is an <b>amendment to ADR-025</b>, not a new decision — see
+     * {@code docs/adr/ADR-025.link.md}, which prescribes exactly that for any change to this
+     * surface. This paragraph is that amendment's input rather than something to be rediscovered
+     * at review.
+     *
+     * <p>Provenance, so the amendment's author re-checks rather than trusts: facet liveness and the
+     * {@code UNREAD_NOTES} quotations come from {@code ExerisDomainProcessor} in
+     * {@code exeris-tooling} v0.8.0; {@code NON_NULL} and the component count from
+     * {@code DomainMetadata} in {@code exeris-sdk} v0.11.0. Both are sibling repositories that move.
      */
     @JsonRequest("exeris/domainDescribe")
     CompletableFuture<DomainDescription> domainDescribe(DomainDescribeParams params);
