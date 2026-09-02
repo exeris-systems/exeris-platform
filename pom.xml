@@ -69,9 +69,21 @@
 
         exeris-kernel already solved this exact split and is the reference: GitHub Packages as the
         default deploy target, Maven Central behind `-P release` with GPG signing, sources/javadoc
-        jars and a readiness gate. Copy that profile from exeris-kernel/pom.xml when 1.0.0 comes;
+        jars and a readiness gate. Copy that profile from exeris-kernel/pom.xml when the time comes;
         deliberately NOT stubbed here, because a half-built `release` profile is a profile that
         uploads unsigned artifacts to an immutable repository.
+
+        WHEN it comes is decided, and it is not soon. Central is gated on the rest of the stack
+        arriving there first — exeris-kernel 0.12.0 (still in development), exeris-sdk 0.12.0 and
+        exeris-tooling 0.9.0 — and on this repo reaching 0.6.0 at the earliest. Publishing a
+        platform artifact to an immutable repository while its own dependencies resolve from
+        nowhere would strand every consumer that tried to use it.
+
+        And when it is wired, Central publishing is TAG-TRIGGERED, not dispatch-triggered: a
+        Central version is spent the moment it is published, so the tag is what nominates the
+        commit and there is no free-text version input to mistype. GitHub Packages keeps the
+        current shape (snapshots on main, dispatch for releases) — the two channels differ because
+        one is reversible and the other is not.
     -->
     <distributionManagement>
         <repository>

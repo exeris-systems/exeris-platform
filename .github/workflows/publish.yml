@@ -45,18 +45,27 @@ jobs:
       packages: write   # `mvn deploy` to GitHub Packages
 
     steps:
+      # Every workflow expression below reaches the shell through `env:`, never spliced into the
+      # script text. A ${{ }} interpolated straight into `run:` is evaluated by Actions BEFORE bash
+      # sees it, so a value containing $(...) or backticks executes. workflow_dispatch already
+      # requires write access, so this is not attacker-reachable from a pull request — it is
+      # cheap defence in depth, and the habit is what stops the day a trigger gets widened.
       - name: Refuse an unreleasable input
         if: github.event_name == 'workflow_dispatch'
+        env:
+          RELEASE_VERSION: ${{ inputs.version }}
+          SHOULD_PUBLISH: ${{ inputs.publish }}
+          REF: ${{ github.ref }}
         run: |
           set -euo pipefail
-          case "${{ inputs.version }}" in
+          case "$RELEASE_VERSION" in
             *-SNAPSHOT) echo "A release version must not end in -SNAPSHOT." >&2; exit 1 ;;
           esac
           # A dry run is useful from any branch and is the cheapest way to find out whether a change
           # breaks the release path. Publishing is not: a tag names a commit, and releases come
           # from main.
-          if [ "${{ inputs.publish }}" = "true" ] && [ "${{ github.ref }}" != "refs/heads/main" ]; then
-            echo "Publishing is allowed from main only; this ref is ${{ github.ref }}." >&2
+          if [ "$SHOULD_PUBLISH" = "true" ] && [ "$REF" != "refs/heads/main" ]; then
+            echo "Publishing is allowed from main only; this ref is $REF." >&2
             exit 1
           fi
 
@@ -108,7 +117,9 @@ jobs:
       - name: Set the release version
         if: github.event_name == 'workflow_dispatch'
         working-directory: exeris-platform
-        run: mvn -B -ntp versions:set -DnewVersion=${{ inputs.version }} -DgenerateBackupPoms=false
+        env:
+          RELEASE_VERSION: ${{ inputs.version }}
+        run: mvn -B -ntp versions:set -DnewVersion="$RELEASE_VERSION" -DgenerateBackupPoms=false
 
       # `install`, so failsafe runs: LauncherIT starts the shaded jar as a separate `java -jar`
       # process and drives a real LSP session through it. That is the gate this whole workflow
@@ -117,6 +128,29 @@ jobs:
       - name: Build, test, and run the launcher IT
         working-directory: exeris-platform
         run: mvn -B -ntp install
+
+      # Two Maven invocations, not one, and the split is deliberate. The step above is the GATE
+      # and must fail hard — including on a push to main, where a broken build has to stop the
+      # publish. This step is the PUBLISH and is allowed to fail on a push (a registry hiccup or
+      # an expired token must not redden main; build.yml is what gates correctness there). Merging
+      # them into a single `mvn deploy` would put both behind one continue-on-error and make a
+      # failing test on main silently non-fatal.
+      #
+      # The cost is that `deploy` re-runs the lifecycle: compile, package and shade all execute a
+      # second time over a dirty target/. exeris-kernel measured that a re-shade over an already
+      # shaded target/ is NOT byte-identical, which is why the digest below is taken AFTER this
+      # step rather than before it — the .sha256 attached to the release must describe the jar
+      # that exists at the end, not the one the gate happened to see first.
+      #
+      # Snapshots on every push to main, releases only when asked. Both land in the same registry,
+      # so a consumer resolves them the same way.
+      - name: Deploy to GitHub Packages
+        if: github.event_name == 'push' || inputs.publish
+        continue-on-error: ${{ github.event_name == 'push' }}
+        working-directory: exeris-platform
+        run: mvn -B -ntp deploy -DskipTests --settings .github/maven-settings.xml
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Identify the artifact
         id: artifact
@@ -133,42 +167,38 @@ jobs:
 
       - name: What a publish would do (dry run)
         if: github.event_name == 'workflow_dispatch' && !inputs.publish
-        run: |
-          echo "Would deploy eu.exeris.platform:*:${{ steps.artifact.outputs.version }} to GitHub Packages"
-          echo "Would create release v${{ steps.artifact.outputs.version }} with asset:"
-          echo "  $(basename '${{ steps.artifact.outputs.jar }}')"
-          echo "Nothing was published — re-run with 'publish' checked."
-
-      # Snapshots on every push to main, releases only when asked. Both land in the same registry,
-      # so a consumer resolves them the same way.
-      - name: Deploy to GitHub Packages
-        if: github.event_name == 'push' || inputs.publish
-        continue-on-error: ${{ github.event_name == 'push' }}
-        working-directory: exeris-platform
-        run: mvn -B -ntp deploy -DskipTests --settings .github/maven-settings.xml
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VERSION: ${{ steps.artifact.outputs.version }}
+          JAR: ${{ steps.artifact.outputs.jar }}
+        run: |
+          echo "Would deploy eu.exeris.platform:*:$VERSION to GitHub Packages"
+          echo "Would create release v$VERSION with asset:"
+          echo "  $(basename "$JAR")"
+          echo "Nothing was published — re-run with 'publish' checked."
 
       - name: Tag and publish the GitHub Release
         if: github.event_name == 'workflow_dispatch' && inputs.publish
         working-directory: exeris-platform
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VERSION: ${{ steps.artifact.outputs.version }}
+          JAR: ${{ steps.artifact.outputs.jar }}
+          TARGET_SHA: ${{ github.sha }}
         run: |
           set -euo pipefail
-          tag="v${{ steps.artifact.outputs.version }}"
+          tag="v$VERSION"
           # `gh release create` creates the tag itself, pointed at the commit this run checked
           # out. Deliberately not `git tag` first: `versions:set` above left the POMs modified in
           # the working tree, and a tag must name the commit CI built from, not a dirty tree.
           # It also avoids configuring a git identity for a tag nobody authors by hand.
           gh release create "$tag" \
-            --target "${{ github.sha }}" \
+            --target "$TARGET_SHA" \
             --title "$tag" \
-            --notes "Standalone LSP launcher. Run it with \`java -jar exeris-platform-lsp-${{ steps.artifact.outputs.version }}-standalone.jar\` — it speaks JSON-RPC over stdio and needs no source tree, no Maven and JDK 25 or newer.
+            --notes "Standalone LSP launcher. Run it with \`java -jar exeris-platform-lsp-${VERSION}-standalone.jar\` — it speaks JSON-RPC over stdio and needs no source tree, no Maven and JDK 25 or newer.
 
-          Also on GitHub Packages as \`eu.exeris.platform:exeris-platform-lsp:${{ steps.artifact.outputs.version }}\` (classifier \`standalone\`). Fetch it with \`-Dtransitive=false\`: the POM's \`eu.exeris:exeris-sdk-*\` dependencies are published nowhere, and the launcher does not need them — they are inside the jar." \
-            "${{ steps.artifact.outputs.jar }}" \
-            "${{ steps.artifact.outputs.jar }}.sha256"
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          Also on GitHub Packages as \`eu.exeris.platform:exeris-platform-lsp:${VERSION}\` (classifier \`standalone\`). Fetch it with \`-Dtransitive=false\`: the POM's \`eu.exeris:exeris-sdk-*\` dependencies are published nowhere, and the launcher does not need them — they are inside the jar." \
+            "$JAR" \
+            "${JAR}.sha256"
 
       - name: Upload the launcher as a workflow artifact
         if: always()

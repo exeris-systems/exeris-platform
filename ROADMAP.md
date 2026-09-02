@@ -114,7 +114,11 @@ This file tracks scope per milestone. Items marked `[ ]` are open; `[x]` shipped
 - [ ] LSP custom-method API frozen (`exeris/*` methods are semver-stable)
 - [ ] Studio UX polish — performance, accessibility, keyboard navigation
 - [ ] `MIGRATION-0.x-to-1.0.md` for plugin authors
-- [ ] Maven Central release (studio-backend + platform-lsp)
+- [ ] Maven Central release (studio-backend + platform-lsp) — **0.6.0 at the earliest, and gated
+      upstream**: `exeris-kernel` 0.12.0 (in development), `exeris-sdk` 0.12.0 and `exeris-tooling`
+      0.9.0 have to be on Central before these coordinates can be, or a consumer resolves a
+      published artifact whose dependencies are published nowhere. Tag-triggered when it lands, and
+      disabled until then; GitHub Packages carries releases in the meantime (0.2.0)
 - [ ] npm registry release for `@exeris/studio-frontend` (and Studio Docker image)
 
 ---
