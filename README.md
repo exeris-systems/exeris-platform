@@ -37,7 +37,7 @@ Studio (Angular + React)              IntelliJ Plugin           VS Code Extensio
 
 | Module | Stack | Purpose |
 |---|---|---|
-| [`exeris-studio-backend`](exeris-studio-backend) | Java 25 | Workspace state and a thin REST/HTTP surface for the Studio frontend. **Holds no domain model** — all domain shape lives in `DomainMetadata` accessed via the LSP server. |
+| [`exeris-studio-backend`](exeris-studio-backend) | Java 25 | The platform's own operational state (workspaces today) and the REST/HTTP surface over it for the Studio frontend. **Holds no domain model** — all domain shape lives in `DomainMetadata` accessed via the LSP server. |
 | [`exeris-studio-frontend`](exeris-studio-frontend) | Angular | Studio shell + embedded React editor. Communicates with the LSP server over WebSocket. |
 | [`exeris-platform-lsp`](exeris-platform-lsp) | Java 25 | LSP server hosting `DomainMetadata`, exposing the custom Exeris extensions declared in [`ExerisProtocolExtensions`](exeris-platform-lsp/src/main/java/eu/exeris/platform/lsp/ExerisProtocolExtensions.java): read-only `exeris/domains`, `exeris/domainDescribe`, `exeris/actions`, and the single writer `exeris/applyMutation`. Also publishes a `-standalone` shaded launcher. |
 | `exeris-platform-bom` | — | Bill of materials. |

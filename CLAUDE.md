@@ -4,7 +4,7 @@ Guardrails for AI assistants working inside `~/exeris-systems/exeris-platform/`.
 
 ## What this repo is — load-bearing facts
 
-`exeris-platform` is the **user-facing platform** of Exeris: Studio (Angular shell + embedded React editor), the LSP server that powers bidirectional sync between Studio / IDE plugins / on-disk `@ExerisDomain` sources, and the thin studio-backend that exposes workspace state.
+`exeris-platform` is the **user-facing platform** of Exeris: Studio (Angular shell + embedded React editor), the LSP server that powers bidirectional sync between Studio / IDE plugins / on-disk `@ExerisDomain` sources, and the studio-backend that holds the platform's own workspace state.
 
 The single most load-bearing fact about this repo:
 
@@ -27,7 +27,7 @@ These are not negotiable.
 ## Strong defaults (justified exceptions allowed)
 
 1. **Studio frontend is Angular 21 with an embedded React editor.** Adding a third UI framework requires a justified ADR — the embedded-React choice was deliberate (editor surface) and not an open invitation. Node 24+ is required (per `package.json` engines field).
-2. **Backend is thin.** `exeris-studio-backend` exposes workspace state and a small REST/HTTP surface for the Studio frontend. It is NOT a domain server, NOT a tx coordinator, NOT a persistence layer. Classes carrying domain shape are a smell; route the work through the LSP server.
+2. **The backend holds its own state, never someone else's shape.** This default used to read "backend is thin", and that was the wrong test — it measured size when the concern was kind. `exeris-studio-backend` may hold as much operational state as its own job requires (workspaces, sessions, deployment history, whatever the control plane turns out to need) and may persist it; `ROADMAP.md` schedules exactly that at 0.9.0. What it must never hold is **domain** shape — anything that could answer "what fields does this entity have" without asking the LSP. A `Workspace` record is the backend's own state and is fine; an `EntityDefinition` beside it is the regression hard constraint 1 bans. It is also not a runtime for user domains: no transaction coordination, no request path for someone else's entities. The test is *whose shape the data describes*, not how many classes there are.
 3. **Tailwind via the `exeris-sdk-ui-kit` preset** (0.4.0 direction). Component library inherits the kit; don't ship a competing design system inside Studio.
 4. **LSP transports**: stdio for IDE plugins, WebSocket for Studio frontend. Both speak the same JSON-RPC. Don't fork the method surface per transport.
 5. **Sibling-repo orchestration** is currently in-job (clone + `mvn install` each upstream) per the 0.2.0 CI plan. A SNAPSHOT registry is a future option, not a near-term commitment.

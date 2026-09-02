@@ -12,7 +12,7 @@ Delivery agent for writing and refactoring platform code without re-litigating a
 
 ## Primary Responsibilities
 - Implement requested behavior with minimal, targeted changes.
-- Backend (Java 26): expose workspace state through a thin REST/HTTP surface; never persist a parallel domain shape; never expose domain endpoints (those go through LSP).
+- Backend (Java 25): expose the platform's own operational state through a REST/HTTP surface; never persist a parallel domain shape; never expose domain endpoints (those go through LSP).
 - LSP (Java 26, LSP4J): JSON-RPC over stdio (IDE plugins) AND WebSocket (Studio frontend); standard LSP methods follow the spec; custom methods under `exeris/*`.
 - Frontend (Angular 21 + embedded React): project `DomainMetadata` to view-models in memory; never persist a parallel shape; never write `.java` files directly — go through LSP `exeris/applyMutation`.
 
