@@ -1,0 +1,182 @@
+name: publish
+
+# Two ways out of this repo, and they answer different needs.
+#
+#   push to main   -> `mvn deploy` of the current SNAPSHOT to GitHub Packages. This is what makes
+#                     exeris-platform-lsp fetchable at all: exeris-ai-bridge launches the server
+#                     today as `mvn -pl exeris-platform-lsp exec:java`, which needs a source tree
+#                     and a Maven reactor, and a machine that only consumes Exeris has neither.
+#                     continue-on-error, like exeris-kernel's equivalent step: publishing must
+#                     never be able to turn main red.
+#
+#   workflow_dispatch -> a tagged release with the standalone jar attached as an asset, for
+#                     consumers who want a fixed version and no Packages credential. Defaults to a
+#                     DRY RUN: it builds, runs the launcher IT and prints what it would publish
+#                     while touching nothing remote.
+#
+# Maven Central is not here on purpose — see the comment on <distributionManagement> in the root
+# POM. It is a 1.0.0 milestone and needs machinery (GPG, sources/javadoc jars, a readiness gate)
+# that exeris-kernel already has and this repo does not.
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Release version (e.g. 0.4.0) — must not end in -SNAPSHOT'
+        required: true
+        type: string
+      publish:
+        description: 'Publish. Unchecked = build, run the launcher IT and report only, touching nothing remote.'
+        required: true
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+jobs:
+  publish:
+    name: ${{ github.event_name == 'push' && 'deploy snapshot' || format('release {0}', inputs.version) }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write   # creating the tag and the GitHub Release
+      packages: write   # `mvn deploy` to GitHub Packages
+
+    steps:
+      - name: Refuse an unreleasable input
+        if: github.event_name == 'workflow_dispatch'
+        run: |
+          set -euo pipefail
+          case "${{ inputs.version }}" in
+            *-SNAPSHOT) echo "A release version must not end in -SNAPSHOT." >&2; exit 1 ;;
+          esac
+          # A dry run is useful from any branch and is the cheapest way to find out whether a change
+          # breaks the release path. Publishing is not: a tag names a commit, and releases come
+          # from main.
+          if [ "${{ inputs.publish }}" = "true" ] && [ "${{ github.ref }}" != "refs/heads/main" ]; then
+            echo "Publishing is allowed from main only; this ref is ${{ github.ref }}." >&2
+            exit 1
+          fi
+
+      - name: Checkout exeris-platform
+        uses: actions/checkout@v4
+        with:
+          path: exeris-platform
+
+      # The sibling checkouts and their pinned refs are the same ones build.yml uses, and for the
+      # same reason: no eu.exeris:exeris-sdk-* or eu.exeris.tooling:* artifact is published to any
+      # Maven repository, so every build installs them from source. The refs MUST stay in step with
+      # exeris.sdk.version / exeris.tooling.version in exeris-platform-bom — a bump that updates one
+      # and not the other silently builds against the wrong upstream.
+      - name: Checkout exeris-sdk (v0.10.0 — matches exeris.sdk.version in the BOM)
+        uses: actions/checkout@v4
+        with:
+          repository: exeris-systems/exeris-sdk
+          ref: v0.10.0
+          path: exeris-sdk
+
+      - name: Checkout exeris-tooling (v0.7.0 — matches exeris.tooling.version in the BOM)
+        uses: actions/checkout@v4
+        with:
+          repository: exeris-systems/exeris-tooling
+          ref: v0.7.0
+          path: exeris-tooling
+
+      # 25, the floor this repo now compiles to. Building the artifact on the oldest JDK it claims
+      # to support is the point: `release 25` guarantees the bytecode, and only running the launcher
+      # IT under a 25 runtime shows the jar actually starts there.
+      - name: Set up JDK 25
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '25'
+          cache: maven
+
+      # japicmp.skip: the SDK binds a semver gate to `verify` from v0.10.0 on, and it resolves its
+      # baseline from a repository no eu.exeris artifact is published to. Not our gate to run — see
+      # the longer note in build.yml.
+      - name: Install exeris-sdk to local Maven repo
+        working-directory: exeris-sdk
+        run: mvn -B -ntp -DskipTests -Djapicmp.skip=true install
+
+      - name: Install exeris-tooling to local Maven repo (kernel-free reactor)
+        working-directory: exeris-tooling
+        run: mvn -B -ntp -DskipTests install -pl exeris-tooling-bom,exeris-processor,exeris-codegen-maven-plugin -am
+
+      - name: Set the release version
+        if: github.event_name == 'workflow_dispatch'
+        working-directory: exeris-platform
+        run: mvn -B -ntp versions:set -DnewVersion=${{ inputs.version }} -DgenerateBackupPoms=false
+
+      # `install`, so failsafe runs: LauncherIT starts the shaded jar as a separate `java -jar`
+      # process and drives a real LSP session through it. That is the gate this whole workflow
+      # exists for. exeris-kernel-diagnostics-cli 0.11.0 published a shaded jar that died on its
+      # first call because its build never executed the artifact it shipped; this one does.
+      - name: Build, test, and run the launcher IT
+        working-directory: exeris-platform
+        run: mvn -B -ntp install
+
+      - name: Identify the artifact
+        id: artifact
+        working-directory: exeris-platform
+        run: |
+          set -euo pipefail
+          version=$(mvn -B -ntp -q -Dexpression=project.version -DforceStdout help:evaluate)
+          jar="exeris-platform-lsp/target/exeris-platform-lsp-${version}-standalone.jar"
+          test -f "$jar" || { echo "::error::expected launcher jar not found: $jar" >&2; exit 1; }
+          echo "version=${version}" >> "$GITHUB_OUTPUT"
+          echo "jar=${jar}" >> "$GITHUB_OUTPUT"
+          sha256sum "$jar" | tee "${jar}.sha256"
+          echo "launcher: $(du -h "$jar" | cut -f1)"
+
+      - name: What a publish would do (dry run)
+        if: github.event_name == 'workflow_dispatch' && !inputs.publish
+        run: |
+          echo "Would deploy eu.exeris.platform:*:${{ steps.artifact.outputs.version }} to GitHub Packages"
+          echo "Would create release v${{ steps.artifact.outputs.version }} with asset:"
+          echo "  $(basename '${{ steps.artifact.outputs.jar }}')"
+          echo "Nothing was published — re-run with 'publish' checked."
+
+      # Snapshots on every push to main, releases only when asked. Both land in the same registry,
+      # so a consumer resolves them the same way.
+      - name: Deploy to GitHub Packages
+        if: github.event_name == 'push' || inputs.publish
+        continue-on-error: ${{ github.event_name == 'push' }}
+        working-directory: exeris-platform
+        run: mvn -B -ntp deploy -DskipTests --settings .github/maven-settings.xml
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Tag and publish the GitHub Release
+        if: github.event_name == 'workflow_dispatch' && inputs.publish
+        working-directory: exeris-platform
+        run: |
+          set -euo pipefail
+          tag="v${{ steps.artifact.outputs.version }}"
+          # `gh release create` creates the tag itself, pointed at the commit this run checked
+          # out. Deliberately not `git tag` first: `versions:set` above left the POMs modified in
+          # the working tree, and a tag must name the commit CI built from, not a dirty tree.
+          # It also avoids configuring a git identity for a tag nobody authors by hand.
+          gh release create "$tag" \
+            --target "${{ github.sha }}" \
+            --title "$tag" \
+            --notes "Standalone LSP launcher. Run it with \`java -jar exeris-platform-lsp-${{ steps.artifact.outputs.version }}-standalone.jar\` — it speaks JSON-RPC over stdio and needs no source tree, no Maven and JDK 25 or newer.
+
+          Also on GitHub Packages as \`eu.exeris.platform:exeris-platform-lsp:${{ steps.artifact.outputs.version }}\` (classifier \`standalone\`). Fetch it with \`-Dtransitive=false\`: the POM's \`eu.exeris:exeris-sdk-*\` dependencies are published nowhere, and the launcher does not need them — they are inside the jar." \
+            "${{ steps.artifact.outputs.jar }}" \
+            "${{ steps.artifact.outputs.jar }}.sha256"
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload the launcher as a workflow artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: exeris-platform-lsp-launcher
+          path: |
+            exeris-platform/exeris-platform-lsp/target/*-standalone.jar
+            exeris-platform/exeris-platform-lsp/target/*-standalone.jar.sha256
+          if-no-files-found: warn
+          retention-days: 30

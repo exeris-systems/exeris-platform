@@ -21,13 +21,22 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # Still 26, and the sequencing is the reason — not inertia. This job builds
-        # exeris-tooling from its `main` ref, and tooling's own enforcer there is still
-        # `[26,27)` (exactly 26). Moving this row to 25 before tooling's JDK 25 LTS
-        # descent merges would fail on tooling's enforcer, not on anything in this repo.
-        # Descend once that lands; the SDK half already permits it (v0.10.0 is
-        # release 25, which builds fine under a 26 JVM).
-        java: ['26']
+        # Both ends of the supported range, and each row earns its place.
+        #
+        # 25 is the floor the reactor now compiles to (maven.compiler.release in the root POM)
+        # and the JDK exeris-platform-lsp's standalone launcher claims to run on. `release 25`
+        # settles the bytecode; only building and running LauncherIT under a 25 runtime shows
+        # the artifact actually starts there.
+        #
+        # 26 keeps the newest JDK from breaking silently — it is what a developer machine here
+        # runs, and the row that would catch a JDK-26 regression in a dependency.
+        #
+        # The row that used to sit here alone was 26, on the grounds that this job built
+        # exeris-tooling from `main`, whose enforcer was then `[26,27)`. PR #20 pinned that
+        # checkout to the v0.7.0 tag, and the tag's enforcer is `[25,)` with
+        # maven.compiler.release 25 — so the stated blocker had already lapsed. exeris-sdk
+        # v0.10.0 is release 25 too, and exeris-kernel has been on 25 all along.
+        java: ['25', '26']
 
     steps:
       - name: Checkout exeris-platform

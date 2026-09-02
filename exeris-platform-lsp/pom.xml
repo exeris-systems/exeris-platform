@@ -70,6 +70,116 @@
                     <mainClass>eu.exeris.platform.lsp.LspMain</mainClass>
                 </configuration>
             </plugin>
+
+            <!--
+                Runs LauncherIT against the jar the shade plugin below produces. Bound to
+                failsafe rather than surefire because it needs `package` to have finished:
+                everything surefire can see is the reactor classpath, and the artifact a
+                consumer actually runs is assembled after that.
+            -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-failsafe-plugin</artifactId>
+                <version>3.2.5</version>
+                <configuration>
+                    <includes>
+                        <include>**/*IT.java</include>
+                    </includes>
+                    <systemPropertyVariables>
+                        <!-- Named, not globbed: a leftover jar from an earlier version in a
+                             dirty target/ must not be able to pass for this one. -->
+                        <exeris.lsp.jar>${project.build.directory}/${project.build.finalName}-standalone.jar</exeris.lsp.jar>
+                    </systemPropertyVariables>
+                </configuration>
+                <executions>
+                    <execution>
+                        <goals>
+                            <goal>integration-test</goal>
+                            <goal>verify</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+
+            <!--
+                The standalone launcher: one self-contained jar a consumer can run as
+                `java -jar` with no source tree and no Maven reactor. exeris-ai-bridge
+                launches this server today as `mvn -pl exeris-platform-lsp exec:java`,
+                which needs both; a machine that only consumes Exeris has neither.
+
+                ATTACHED under a classifier rather than replacing the main artifact —
+                a deliberate divergence from exeris-kernel-diagnostics-cli, which is a
+                pure executable and can afford to replace its own jar. This module is
+                also a library on paper (the BOM manages it, and an in-JVM IDE plugin
+                would consume it as one), and handing such a consumer a jar with
+                JavaParser, LSP4J, Jackson and the whole source model baked in is a
+                classpath hazard rather than a convenience. The thin jar stays the main
+                artifact; `-standalone` is the thing you run.
+
+                CAVEAT for whoever resolves this: eu.exeris:exeris-sdk-* is published to
+                no Maven repository at all — every consumer builds it from source (see
+                the sibling-checkout steps in .github/workflows/build.yml) — so the main
+                POM's dependencies are NOT resolvable off-repo. Fetch the launcher with
+                `-Dtransitive=false`. That is exactly what shading makes safe: the SDK
+                classes are inside this jar, so nothing needs to resolve them at runtime.
+            -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-shade-plugin</artifactId>
+                <version>3.6.0</version>
+                <executions>
+                    <execution>
+                        <phase>package</phase>
+                        <goals><goal>shade</goal></goals>
+                        <configuration>
+                            <shadedArtifactAttached>true</shadedArtifactAttached>
+                            <shadedClassifierName>standalone</shadedClassifierName>
+                            <!-- The main artifact and its POM are untouched, so there is
+                                 nothing to reduce; writing one would only publish a POM
+                                 that disagrees with the jar beside it. -->
+                            <createDependencyReducedPom>false</createDependencyReducedPom>
+                            <transformers>
+                                <transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
+                                    <mainClass>eu.exeris.platform.lsp.LspMain</mainClass>
+                                    <manifestEntries>
+                                        <!-- gson and jackson-core are multi-release jars and
+                                             their versioned classes survive the merge; without
+                                             this the JVM ignores META-INF/versions/ entirely and
+                                             silently runs the Java 8 fallbacks. -->
+                                        <Multi-Release>true</Multi-Release>
+                                    </manifestEntries>
+                                </transformer>
+                                <!-- Measured, not copied: the SDK jars carry no META-INF/services
+                                     at all (the LSP reaches the source model by direct call, not
+                                     ServiceLoader). What does carry service files is Jackson 3 —
+                                     tools.jackson.databind.ObjectMapper and
+                                     tools.jackson.core.TokenStreamFactory. They name different
+                                     interfaces today, so nothing collides yet; the transformer is
+                                     here so that a second provider for either one merges instead
+                                     of one file overwriting the other. -->
+                                <transformer implementation="org.apache.maven.plugins.shade.resource.ServicesResourceTransformer"/>
+                            </transformers>
+                            <filters>
+                                <filter>
+                                    <artifact>*:*</artifact>
+                                    <excludes>
+                                        <!-- Signatures over the original jars; they cannot
+                                             describe the merged one and make it unloadable. -->
+                                        <exclude>META-INF/*.SF</exclude>
+                                        <exclude>META-INF/*.DSA</exclude>
+                                        <exclude>META-INF/*.RSA</exclude>
+                                        <!-- Five dependencies ship a module-info; flattened into
+                                             one jar they collide, and this artifact is run on the
+                                             classpath, where they carry no meaning anyway. -->
+                                        <exclude>module-info.class</exclude>
+                                        <exclude>META-INF/versions/*/module-info.class</exclude>
+                                    </excludes>
+                                </filter>
+                            </filters>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
         </plugins>
     </build>
 </project>

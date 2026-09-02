@@ -25,7 +25,17 @@ This file tracks scope per milestone. Items marked `[ ]` are open; `[x]` shipped
 
 - [x] **CI** — `.github/workflows/build.yml` (clones SDK + tooling, installs both, then `mvn install` + `npm run build` in parallel jobs)
 - [x] **`exeris-platform-lsp` skeleton** — LSP4J server, JSON-RPC over stdio, `initialize`/`shutdown` handlers (Exeris-specific methods followed in 0.3.0)
-- [x] **Pre-publish POM metadata** — root POM now declares `<url>`, `<organization>`, `<licenses>`, `<developers>`, `<scm>`, `<issueManagement>`, `<distributionManagement>` (Sonatype Central Portal). Required by Maven Central
+- [x] **Pre-publish POM metadata** — root POM declares `<url>`, `<organization>`, `<licenses>`, `<developers>`, `<scm>`, `<issueManagement>`. Required by Maven Central, and kept for it. `<distributionManagement>` named the Central Portal when this box was ticked; it now names GitHub Packages, because Central is not reachable for these coordinates before 1.0.0 and `mvn deploy` was aimed at a repository that would have rejected it
+- [x] **Standalone LSP launcher** — `exeris-platform-lsp` attaches a shaded `-standalone` jar
+      (`Main-Class: eu.exeris.platform.lsp.LspMain`) that runs as `java -jar` with no source tree
+      and no Maven. `LauncherIT` starts that jar in a separate process on every build and drives a
+      real LSP session through it, including two applies of the same `MutationOp`
+- [x] **Publish pipeline** — `.github/workflows/publish.yml`: SNAPSHOTs to GitHub Packages on push
+      to `main`, and a `workflow_dispatch` release that tags, deploys and attaches the launcher as
+      a release asset. Defaults to a dry run. Maven Central stays a 1.0.0 concern (see below)
+- [x] **JDK floor at 25** — the reactor compiles to `release 25`, matching `exeris-kernel`,
+      `exeris-sdk` v0.10.0 and `exeris-tooling` v0.7.0, so a consumer running the launcher beside
+      `exeris-kernel-diagnostics-cli` has one JDK requirement rather than two. CI builds 25 and 26
 - [ ] **Sibling-repo orchestration** — documented or solved (currently CI does in-job clone+install per repo; longer-term consider SNAPSHOT registry)
 
 ## 0.3.0 — LSP custom Exeris methods
