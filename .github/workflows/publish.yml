@@ -59,14 +59,16 @@ jobs:
         run: |
           set -euo pipefail
 
-          case "$TAG" in
-            v[0-9]*.[0-9]*.[0-9]*) ;;
-            *) echo "::error::Tag '$TAG' is not v<major>.<minor>.<patch>." >&2; exit 1 ;;
-          esac
+          # Anchored, so it means what the message says. A `case` glob would not: the trailing
+          # `*` in v[0-9]*.[0-9]*.[0-9]* swallows anything, admitting v1.2.3.4 and v1.2.3-rc1 —
+          # both of which the version comparison below would then reject with a message about the
+          # wrong thing. The anchors also make a separate -SNAPSHOT check redundant; there is no
+          # suffix a release tag may carry.
+          if ! printf '%s' "$TAG" | grep -Eq '^v[0-9]+\.[0-9]+\.[0-9]+$'; then
+            echo "::error::Tag '$TAG' is not v<major>.<minor>.<patch>." >&2
+            exit 1
+          fi
           version="${TAG#v}"
-          case "$version" in
-            *-SNAPSHOT) echo "::error::A release version must not end in -SNAPSHOT." >&2; exit 1 ;;
-          esac
 
           # The tag must name the development line the POMs are actually on. Without this, tagging
           # v0.9.0 off a 0.3.0-SNAPSHOT trunk quietly produces a 0.9.0 release containing 0.3.0
