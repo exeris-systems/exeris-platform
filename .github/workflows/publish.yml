@@ -1,0 +1,214 @@
+name: publish
+
+# A release is a TAG, and nothing else is.
+#
+#   push a tag v<x.y.z>  -> build, gate, deploy to GitHub Packages, cut the GitHub Release with
+#                           the standalone launcher attached. This is the only path that publishes.
+#   workflow_dispatch    -> dry run. Builds and runs the launcher IT, reports what a release would
+#                           produce, touches nothing remote. Use it to check the release path
+#                           without spending a version.
+#
+# Deliberately NOT on push to main. main carries many merges of the same development line — a dozen
+# PRs are all `0.4.0-SNAPSHOT` — so publishing on merge produces a stream of artifacts that share a
+# coordinate and differ in content, and a consumer pinning that coordinate gets whichever one landed
+# last. Only the cut is a release, so only the cut publishes.
+#
+# MAVEN CENTRAL is not wired, and this is where it will go when it is: same trigger, same tag, one
+# additional `-P release` deploy step after the Packages one. It stays absent until the rest of the
+# stack is on Central (exeris-kernel 0.12.0, exeris-sdk 0.12.0, exeris-tooling 0.9.0) and this repo
+# reaches 0.6.0 at the earliest — see the <distributionManagement> comment in the root POM. A
+# half-built `release` profile is one that uploads unsigned artifacts to an immutable repository, so
+# there is no placeholder step here to accidentally enable.
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  publish:
+    name: ${{ startsWith(github.ref, 'refs/tags/') && format('release {0}', github.ref_name) || 'dry run' }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write   # cutting the GitHub Release
+      packages: write   # `mvn deploy` to GitHub Packages
+
+    steps:
+      # Every workflow expression below reaches the shell through `env:`, never spliced into the
+      # script text. A ${{ }} interpolated straight into `run:` is evaluated by Actions BEFORE bash
+      # sees it, so a value containing $(...) or backticks executes. Tag pushes already require
+      # write access, so this is not attacker-reachable from a pull request — it is cheap defence in
+      # depth, and the habit is what holds the day a trigger gets widened.
+      - name: Checkout exeris-platform
+        uses: actions/checkout@v4
+        with:
+          path: exeris-platform
+          # Full history: the ancestry check below needs origin/main, and a shallow clone has no
+          # remote branches to compare a tag against.
+          fetch-depth: 0
+
+      - name: Validate the tag
+        if: startsWith(github.ref, 'refs/tags/')
+        working-directory: exeris-platform
+        env:
+          TAG: ${{ github.ref_name }}
+          TAGGED_SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+
+          # Anchored, so it means what the message says. A `case` glob would not: the trailing
+          # `*` in v[0-9]*.[0-9]*.[0-9]* swallows anything, admitting v1.2.3.4 and v1.2.3-rc1 —
+          # both of which the version comparison below would then reject with a message about the
+          # wrong thing. The anchors also make a separate -SNAPSHOT check redundant; there is no
+          # suffix a release tag may carry.
+          if ! printf '%s' "$TAG" | grep -Eq '^v[0-9]+\.[0-9]+\.[0-9]+$'; then
+            echo "::error::Tag '$TAG' is not v<major>.<minor>.<patch>." >&2
+            exit 1
+          fi
+          version="${TAG#v}"
+
+          # The tag must name the development line the POMs are actually on. Without this, tagging
+          # v0.9.0 off a 0.3.0-SNAPSHOT trunk quietly produces a 0.9.0 release containing 0.3.0
+          # work — and on an immutable repository that number is then spent. Typos in a tag are the
+          # realistic failure here, not malice.
+          pom=$(mvn -B -ntp -q -Dexpression=project.version -DforceStdout help:evaluate)
+          if [ "$pom" != "${version}-SNAPSHOT" ]; then
+            echo "::error::Tag '$TAG' asks for $version, but the POMs are on $pom." >&2
+            echo "::error::Bump the reactor to ${version}-SNAPSHOT first, or tag the version the trunk is on." >&2
+            exit 1
+          fi
+
+          # Releases come from main. A tag on an unmerged branch would publish code that never
+          # passed the merge gate, under a number that can never be reused.
+          if ! git merge-base --is-ancestor "$TAGGED_SHA" origin/main; then
+            echo "::error::Tag '$TAG' points at a commit that is not on origin/main." >&2
+            exit 1
+          fi
+
+          echo "releasing $version from $TAGGED_SHA"
+
+      # The sibling checkouts and their pinned refs are the same ones build.yml uses, and for the
+      # same reason: no eu.exeris:exeris-sdk-* or eu.exeris.tooling:* artifact is published to any
+      # Maven repository, so every build installs them from source. The refs MUST stay in step with
+      # exeris.sdk.version / exeris.tooling.version in exeris-platform-bom — a bump that updates one
+      # and not the other silently builds against the wrong upstream.
+      - name: Checkout exeris-sdk (v0.10.0 — matches exeris.sdk.version in the BOM)
+        uses: actions/checkout@v4
+        with:
+          repository: exeris-systems/exeris-sdk
+          ref: v0.10.0
+          path: exeris-sdk
+
+      - name: Checkout exeris-tooling (v0.7.0 — matches exeris.tooling.version in the BOM)
+        uses: actions/checkout@v4
+        with:
+          repository: exeris-systems/exeris-tooling
+          ref: v0.7.0
+          path: exeris-tooling
+
+      # 25, the floor this repo compiles to. Building the artifact on the oldest JDK it claims to
+      # support is the point: `release 25` guarantees the bytecode, and only running the launcher IT
+      # under a 25 runtime shows the jar actually starts there.
+      - name: Set up JDK 25
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '25'
+          cache: maven
+
+      # japicmp.skip: the SDK binds a semver gate to `verify` from v0.10.0 on, and it resolves its
+      # baseline from a repository no eu.exeris artifact is published to. Not our gate to run — see
+      # the longer note in build.yml.
+      - name: Install exeris-sdk to local Maven repo
+        working-directory: exeris-sdk
+        run: mvn -B -ntp -DskipTests -Djapicmp.skip=true install
+
+      - name: Install exeris-tooling to local Maven repo (kernel-free reactor)
+        working-directory: exeris-tooling
+        run: mvn -B -ntp -DskipTests install -pl exeris-tooling-bom,exeris-processor,exeris-codegen-maven-plugin -am
+
+      - name: Drop the -SNAPSHOT suffix
+        if: startsWith(github.ref, 'refs/tags/')
+        working-directory: exeris-platform
+        env:
+          TAG: ${{ github.ref_name }}
+        run: mvn -B -ntp versions:set -DnewVersion="${TAG#v}" -DgenerateBackupPoms=false
+
+      # ONE Maven invocation, and that is the point: `deploy` runs the whole lifecycle, so the jar
+      # LauncherIT started as a separate `java -jar` process is the exact jar that gets uploaded.
+      # Gating in one run and publishing in a second re-runs shade over a dirty target/, and a
+      # re-shade is not byte-identical (exeris-kernel measured this) — the artifact you verified
+      # would not be the artifact you shipped.
+      #
+      # The gate itself is LauncherIT. exeris-kernel-diagnostics-cli 0.11.0 published a shaded jar
+      # that initialised and then died on its first call, because its build never executed the
+      # artifact it shipped. This one does, and a red IT stops the release.
+      - name: Build, gate, and deploy to GitHub Packages
+        if: startsWith(github.ref, 'refs/tags/')
+        working-directory: exeris-platform
+        run: mvn -B -ntp deploy --settings .github/maven-settings.xml
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and gate only (dry run)
+        if: ${{ !startsWith(github.ref, 'refs/tags/') }}
+        working-directory: exeris-platform
+        run: mvn -B -ntp install
+
+      - name: Identify the artifact
+        id: artifact
+        working-directory: exeris-platform
+        run: |
+          set -euo pipefail
+          version=$(mvn -B -ntp -q -Dexpression=project.version -DforceStdout help:evaluate)
+          jar="exeris-platform-lsp/target/exeris-platform-lsp-${version}-standalone.jar"
+          test -f "$jar" || { echo "::error::expected launcher jar not found: $jar" >&2; exit 1; }
+          echo "version=${version}" >> "$GITHUB_OUTPUT"
+          echo "jar=${jar}" >> "$GITHUB_OUTPUT"
+          sha256sum "$jar" | tee "${jar}.sha256"
+          echo "launcher: $(du -h "$jar" | cut -f1)"
+
+      - name: What a release would produce (dry run)
+        if: ${{ !startsWith(github.ref, 'refs/tags/') }}
+        env:
+          VERSION: ${{ steps.artifact.outputs.version }}
+          JAR: ${{ steps.artifact.outputs.jar }}
+        run: |
+          echo "Trunk is on $VERSION, so the next cut is tag v${VERSION%-SNAPSHOT}."
+          echo "That tag would deploy eu.exeris.platform:* to GitHub Packages and cut a release"
+          echo "carrying $(basename "$JAR" | sed "s/$VERSION/${VERSION%-SNAPSHOT}/")."
+          echo "Nothing was published — a dry run touches nothing remote."
+
+      - name: Cut the GitHub Release
+        if: startsWith(github.ref, 'refs/tags/')
+        working-directory: exeris-platform
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ github.ref_name }}
+          VERSION: ${{ steps.artifact.outputs.version }}
+          JAR: ${{ steps.artifact.outputs.jar }}
+        run: |
+          set -euo pipefail
+          # The tag already exists — pushing it is what started this run — so the release attaches
+          # to it rather than creating it.
+          gh release create "$TAG" \
+            --title "$TAG" \
+            --notes "Standalone LSP launcher. Run it with \`java -jar exeris-platform-lsp-${VERSION}-standalone.jar\` — it speaks JSON-RPC over stdio and needs no source tree, no Maven and JDK 25 or newer.
+
+          Also on GitHub Packages as \`eu.exeris.platform:exeris-platform-lsp:${VERSION}\` (classifier \`standalone\`). Fetch it with \`-Dtransitive=false\`: the POM's \`eu.exeris:exeris-sdk-*\` dependencies are published nowhere, and the launcher does not need them — they are inside the jar." \
+            "$JAR" \
+            "${JAR}.sha256"
+
+      - name: Upload the launcher as a workflow artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: exeris-platform-lsp-launcher
+          path: |
+            exeris-platform/exeris-platform-lsp/target/*-standalone.jar
+            exeris-platform/exeris-platform-lsp/target/*-standalone.jar.sha256
+          if-no-files-found: warn
+          retention-days: 30

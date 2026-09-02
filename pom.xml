@@ -5,7 +5,7 @@
 
     <groupId>eu.exeris.platform</groupId>
     <artifactId>exeris-platform-root</artifactId>
-    <version>0.1.0-SNAPSHOT</version>
+    <version>0.3.0-SNAPSHOT</version>
     <packaging>pom</packaging>
 
     <name>Exeris Platform :: Root</name>
@@ -55,15 +55,45 @@
         <url>https://github.com/exeris-systems/exeris-platform/issues</url>
     </issueManagement>
 
+    <!--
+        GitHub Packages, not Maven Central — and the swap is deliberate.
+
+        Central is still where these coordinates belong at 1.0.0 (ROADMAP), and 0.2.0 put the
+        Central URLs here to have the metadata Central demands (url, organization, licenses,
+        developers, scm, issueManagement) settled early. That metadata stays. What could not stay
+        is Central as the DEFAULT deploy target: nothing in this repo is signed, no module attaches
+        a sources or javadoc jar, and no eu.exeris coordinate is on Central yet — the ecosystem does
+        not move there before exeris-kernel does. So `mvn deploy` aimed at a repository that would
+        reject it, on a project whose real need is the opposite: a snapshot a consumer can fetch
+        today.
+
+        exeris-kernel already solved this exact split and is the reference: GitHub Packages as the
+        default deploy target, Maven Central behind `-P release` with GPG signing, sources/javadoc
+        jars and a readiness gate. Copy that profile from exeris-kernel/pom.xml when the time comes;
+        deliberately NOT stubbed here, because a half-built `release` profile is a profile that
+        uploads unsigned artifacts to an immutable repository.
+
+        WHEN it comes is decided, and it is not soon. Central is gated on the rest of the stack
+        arriving there first — exeris-kernel 0.12.0 (still in development), exeris-sdk 0.12.0 and
+        exeris-tooling 0.9.0 — and on this repo reaching 0.6.0 at the earliest. Publishing a
+        platform artifact to an immutable repository while its own dependencies resolve from
+        nowhere would strand every consumer that tried to use it.
+
+        When it is wired it rides the same trigger everything else does: a release is a TAG. Both
+        registries are fed by one cut, so a version can never exist on one and not the other. See
+        .github/workflows/publish.yml.
+    -->
     <distributionManagement>
-        <snapshotRepository>
-            <id>central</id>
-            <url>https://central.sonatype.com/repository/maven-snapshots</url>
-        </snapshotRepository>
         <repository>
-            <id>central</id>
-            <url>https://central.sonatype.com</url>
+            <id>github-exeris-platform</id>
+            <name>Exeris Platform — GitHub Packages</name>
+            <url>https://maven.pkg.github.com/exeris-systems/exeris-platform</url>
         </repository>
+        <snapshotRepository>
+            <id>github-exeris-platform</id>
+            <name>Exeris Platform — GitHub Packages (Snapshots)</name>
+            <url>https://maven.pkg.github.com/exeris-systems/exeris-platform</url>
+        </snapshotRepository>
     </distributionManagement>
 
     <modules>
@@ -77,7 +107,16 @@
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
-        <maven.compiler.release>26</maven.compiler.release>
+        <!-- 25, matching exeris-kernel (release 25), exeris-sdk v0.10.0 (release 25) and
+             exeris-tooling v0.7.0 (release 25, enforcer [25,)). This repo sat on 26 while its CI
+             tracked exeris-tooling's `main`, whose enforcer was then [26,27); PR #20 pinned that
+             checkout to the v0.7.0 tag and the constraint left with it.
+
+             Load-bearing for a consumer, not a preference: exeris-platform-lsp ships a standalone
+             launcher, and exeris-ai-bridge runs it beside exeris-kernel-diagnostics-cli. Emitting
+             class-file 70 here would have meant one JDK floor for the kernel's artifact and a
+             higher one for ours — a split no downstream can paper over. -->
+        <maven.compiler.release>25</maven.compiler.release>
     </properties>
 
     <build>

@@ -12,7 +12,7 @@ The single most load-bearing fact about this repo:
 
 Studio operates **exclusively** on the canonical `DomainMetadata` model defined in [`exeris-sdk-source-model`](../exeris-sdk). The backend deliberately holds **no parallel metamodel**. Corelio-era `EntityDefinition` / `PropertyDefinition` / `RelationDefinition` / `Project` were deleted during the repo split — having two metamodels would have rotted in opposite directions.
 
-**Status:** uneven, and the docs lag the code. `exeris-platform-lsp` is past scaffold — it already depends on `exeris-sdk-source-model-io` (ADR-037) and ships the read-only `exeris/*` trio plus `exeris/applyMutation` (ADR-042, recorded as *realized in this repo*). The studio-backend and frontend are still largely placeholders. Status claims in `README.md` and `ROADMAP.md` were reconciled with the code in this same change, so they should agree today — but the code is what settles it, so verify against `exeris-platform-lsp` sources rather than assuming any doc kept up. For the split of coordinates: `exeris-sdk-source-model-io` holds the JavaParser parser/writer, `exeris-sdk-source-model` the canonical AST records (kept dependency-light).
+**Status:** uneven, and the docs lag the code. `exeris-platform-lsp` is past scaffold — it already depends on `exeris-sdk-source-model-io` (ADR-037), ships the read-only `exeris/*` trio plus `exeris/applyMutation` (ADR-042, recorded as *realized in this repo*), and ships a standalone launcher (`-standalone` shaded jar) that runs with no source tree. The studio-backend and frontend are still largely placeholders. Status claims in `README.md` and `ROADMAP.md` were reconciled with the code in this same change, so they should agree today — but the code is what settles it, so verify against `exeris-platform-lsp` sources rather than assuming any doc kept up. For the split of coordinates: `exeris-sdk-source-model-io` holds the JavaParser parser/writer, `exeris-sdk-source-model` the canonical AST records (kept dependency-light).
 
 ## Hard constraints (always enforce)
 
@@ -31,6 +31,9 @@ These are not negotiable.
 3. **Tailwind via the `exeris-sdk-ui-kit` preset** (0.4.0 direction). Component library inherits the kit; don't ship a competing design system inside Studio.
 4. **LSP transports**: stdio for IDE plugins, WebSocket for Studio frontend. Both speak the same JSON-RPC. Don't fork the method surface per transport.
 5. **Sibling-repo orchestration** is currently in-job (clone + `mvn install` each upstream) per the 0.2.0 CI plan. A SNAPSHOT registry is a future option, not a near-term commitment.
+6. **The standalone launcher is a consumer contract, and `LauncherIT` is what makes it one.** `exeris-platform-lsp` attaches a shaded `-standalone` jar; `LauncherIT` starts *that jar* as a separate `java -jar` process and drives a real LSP session through it. Do not delete it, do not move it to surefire (it needs `package` to have run), and do not "fix" a red build by skipping it. It exists because the neighbouring `exeris-kernel-diagnostics-cli` published a 0.11.0 shaded jar that initialised and then died on its first call — a build that never runs the artifact it ships cannot see that class of bug. Shading is also where the SDK's Jackson-3 polymorphic `MutationOp` / `MutationResult` vocabulary is most likely to break, and the IT covers exactly that path.
+7. **JDK floor is 25** (`maven.compiler.release` in the root POM), matching `exeris-kernel`, `exeris-sdk` v0.10.0 and `exeris-tooling` v0.7.0. This is a downstream constraint, not a style preference: `exeris-ai-bridge` runs our launcher beside `exeris-kernel-diagnostics-cli`, and emitting class-file 70 here would give a consumer two different JDK floors. Raise it only when the kernel does.
+8. **`mvn deploy` goes to GitHub Packages, not Maven Central**, and Central is not close. It needs signing, sources/javadoc jars and a readiness gate this repo does not have (copy `exeris-kernel`'s `release` profile when the time comes), but the binding constraint is sequencing, not machinery: the rest of the stack has to be on Central first — `exeris-kernel` 0.12.0 (still in development), `exeris-sdk` 0.12.0, `exeris-tooling` 0.9.0 — and this repo reaches 0.6.0 at the earliest. Do not treat "add a `release` profile" as a ready task. When it is wired, **Central rides the same tag** — one cut, both registries — and stays disabled until then. The two channels differ in reversibility, not in trigger: a Packages coordinate can be republished, a Central version is spent forever, which is why only Central needs the signing and readiness machinery above. Today a publish is `.github/workflows/publish.yml`, and **a release there is a tag and nothing else** — pushing `v<x.y.z>` is what deploys; `workflow_dispatch` is a dry run that touches nothing remote. Not on push to `main`, deliberately: a whole development line shares one `-SNAPSHOT` coordinate, so publishing per merge produces artifacts that share a coordinate and differ in content. Trunk therefore sits on `<next>-SNAPSHOT` and `main` never carries a release version; the cut procedure is in `ROADMAP.md`.
 
 ## Scoped bans
 
@@ -68,13 +71,18 @@ A change to LSP method surface (add / remove / rename `exeris/*` method, change 
 ## Build & test
 
 ```bash
-mvn clean install                                             # backend + LSP (Java reactor)
-mvn -pl exeris-platform-lsp -am test                          # LSP module + deps
+mvn clean install                                             # backend + LSP, incl. LauncherIT
+mvn -pl exeris-platform-lsp -am test                          # unit tests only (no LauncherIT)
+mvn -pl exeris-platform-lsp verify                            # + packages and runs the launcher
 cd exeris-studio-frontend && npm install && npm run build     # Angular frontend (separate npm build)
 cd exeris-studio-frontend && npm run test                     # Angular unit tests
 ```
 
+`LauncherIT` needs the shaded jar, so it runs at `verify` (failsafe) — `mvn test` alone will not exercise it. The jar lands at `exeris-platform-lsp/target/exeris-platform-lsp-<version>-standalone.jar`.
+
 Local `mvn install` of `eu.exeris:exeris-sdk-*` and `eu.exeris.tooling:*` is required — until SNAPSHOTs are published, a fresh clone of this repo alone cannot resolve those deps.
+
+**`clean` matters more here than usual.** `SchemaVersion.CURRENT` is a `static final String`, so javac *inlines its value* into every class that reads it — `ApplyMutationTest` and `LauncherIT` both do. Rebuild the SDK at a different version without rebuilding this repo's tests and the stale test classes keep asserting the old literal against a jar that now says something else; the baseline reads as schema skew and three `applyMutation` tests fail with `NO_BASELINE`. It looks exactly like a write-back regression and is not one. If those tests fail locally but CI is green, run `mvn clean test` before believing them.
 
 ## Documentation precedence
 
