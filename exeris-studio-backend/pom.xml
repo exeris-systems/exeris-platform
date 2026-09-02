@@ -27,5 +27,51 @@
             <groupId>eu.exeris</groupId>
             <artifactId>exeris-sdk-source-model</artifactId>
         </dependency>
+        <!-- @ExerisDomain / @Field on this module's own domain. Compile scope because the
+             annotations are on the sources; they are @Retention(SOURCE), so nothing of them
+             survives into the jar. -->
+        <dependency>
+            <groupId>eu.exeris</groupId>
+            <artifactId>exeris-sdk-annotations</artifactId>
+        </dependency>
     </dependencies>
+
+    <build>
+        <plugins>
+            <!--
+                The first dogfooding step, and deliberately only the first.
+
+                exeris-processor is an ordinary annotation processor: it reads @ExerisDomain
+                sources and writes the exeris-metadata/*.json corpus into the build output. That
+                is all it does here. It pulls in no kernel artifact, needs no database, and
+                generates no Java — the corpus is the deliverable.
+
+                What is NOT wired, and must not be added without a decision:
+                exeris-codegen-maven-plugin. That turns the same corpus into a running kernel
+                application — services, repositories, Flyway migrations, handlers — which brings
+                two consequences this repo has explicitly avoided so far. It would put
+                eu.exeris:exeris-kernel-* on this reactor, reversing the stance build.yml states
+                outright ("this repo depends on no kernel artifact ... That is the point rather
+                than an omission"); and generated repositories plus Flyway imply persistence,
+                which ROADMAP schedules at 0.9.0 and which CLAUDE.md's "backend is thin, NOT a
+                persistence layer" default rules out for now.
+
+                Declared on annotationProcessorPaths rather than as a dependency, so the
+                processor runs at compile time without entering the module's own classpath.
+            -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <configuration>
+                    <annotationProcessorPaths>
+                        <path>
+                            <groupId>eu.exeris.tooling</groupId>
+                            <artifactId>exeris-processor</artifactId>
+                            <version>${exeris.tooling.version}</version>
+                        </path>
+                    </annotationProcessorPaths>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
 </project>

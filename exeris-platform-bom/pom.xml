@@ -102,7 +102,14 @@
                 <version>${jackson.version}</version>
             </dependency>
 
-            <!-- Exeris Tooling (build-time, available for Studio integration) -->
+            <!-- Exeris Tooling (build-time). exeris-processor is the annotation processor that
+                 turns @ExerisDomain sources into the exeris-metadata/*.json corpus; codegen-core
+                 is the emitter side, not yet consumed here. -->
+            <dependency>
+                <groupId>eu.exeris.tooling</groupId>
+                <artifactId>exeris-processor</artifactId>
+                <version>${exeris.tooling.version}</version>
+            </dependency>
             <dependency>
                 <groupId>eu.exeris.tooling</groupId>
                 <artifactId>exeris-codegen-core</artifactId>
