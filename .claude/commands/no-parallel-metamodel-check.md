@@ -6,7 +6,7 @@ argument-hint: PR diff or files in studio-backend / platform-lsp touched by the 
 Audit this change for parallel-metamodel regression.
 
 The contract:
-- The Corelio-era `EntityDefinition`, `PropertyDefinition`, `RelationDefinition`, `Project` records were deliberately deleted during the repo split. The backend `package-info` documents this.
+- The `EntityDefinition`, `PropertyDefinition`, `RelationDefinition`, `Project` records were deliberately deleted during the repo split. The backend `package-info` documents this.
 - Studio operates exclusively on canonical `DomainMetadata` (from `exeris-sdk-source-model`), accessed via LSP.
 - Frontend view-model projection of `DomainMetadata` is OK — only **persisting** a parallel shape is forbidden.
 - "Just for the UI" or "just for the workspace tree" is not a sufficient justification.

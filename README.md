@@ -8,8 +8,9 @@ between Studio, IDE plugins, and on-disk `@ExerisDomain` sources.
 > `exeris-sdk-source-model-io` (ADR-037), ships the read-only `exeris/*` trio
 > plus `exeris/applyMutation` (ADR-042), and now ships as a standalone launcher
 > that runs with no source tree (see [Running the LSP server](#running-the-lsp-server)).
-> `exeris-studio-backend` and `exeris-studio-frontend` are still placeholders that
-> scaffold the target architecture below.
+> `exeris-studio-backend` now models its own workspace state as an `@ExerisDomain` and emits it
+> to the `exeris-metadata` corpus, but exposes no surface over it yet; `exeris-studio-frontend` is
+> still a placeholder scaffolding the target architecture below.
 
 ## Architecture (target)
 
@@ -116,7 +117,7 @@ and then died on its first call.
 
 ## Why no metamodel here
 
-Earlier (Corelio-era) iterations of this repo hosted a parallel domain model
+An earlier, pre-split iteration of this repo hosted a parallel domain model
 (`EntityDefinition`, `PropertyDefinition`, `RelationDefinition`) inside the
 Studio backend. It was deliberately deleted during the repo split — having two
 metamodels (Studio's vs `DomainMetadata`'s) would have rotted in opposite

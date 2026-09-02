@@ -25,3 +25,8 @@ Thumbs.db
 hs_err_pid*.log
 hs_err_pid*.jfr
 replay_pid*.log
+
+# Machine-local MCP server config. The rest of .claude/ (skills, agents, commands) is
+# deliberately checked in and shared; this one file is not, because it records an
+# absolute working directory that is true only on the machine that wrote it.
+.claude/mcp.json

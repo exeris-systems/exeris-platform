@@ -10,7 +10,7 @@ The single most load-bearing fact about this repo:
 
 > **One canonical model, three editing surfaces, idempotent write-back.**
 
-Studio operates **exclusively** on the canonical `DomainMetadata` model defined in [`exeris-sdk-source-model`](../exeris-sdk). The backend deliberately holds **no parallel metamodel**. Corelio-era `EntityDefinition` / `PropertyDefinition` / `RelationDefinition` / `Project` were deleted during the repo split — having two metamodels would have rotted in opposite directions.
+Studio operates **exclusively** on the canonical `DomainMetadata` model defined in [`exeris-sdk-source-model`](../exeris-sdk). The backend deliberately holds **no parallel metamodel**. `EntityDefinition` / `PropertyDefinition` / `RelationDefinition` / `Project` were deleted during the repo split — having two metamodels would have rotted in opposite directions.
 
 **Status:** uneven, and the docs lag the code. `exeris-platform-lsp` is past scaffold — it already depends on `exeris-sdk-source-model-io` (ADR-037), ships the read-only `exeris/*` trio plus `exeris/applyMutation` (ADR-042, recorded as *realized in this repo*), and ships a standalone launcher (`-standalone` shaded jar) that runs with no source tree. The studio-backend and frontend are still largely placeholders. Status claims in `README.md` and `ROADMAP.md` were reconciled with the code in this same change, so they should agree today — but the code is what settles it, so verify against `exeris-platform-lsp` sources rather than assuming any doc kept up. For the split of coordinates: `exeris-sdk-source-model-io` holds the JavaParser parser/writer, `exeris-sdk-source-model` the canonical AST records (kept dependency-light).
 
@@ -18,7 +18,7 @@ Studio operates **exclusively** on the canonical `DomainMetadata` model defined 
 
 These are not negotiable.
 
-1. **No parallel metamodel.** The studio-backend holds no domain shape. Anything that looks like a per-repo `EntityDefinition`, `Project`, or `Field` record is a regression — the canonical shape is `DomainMetadata` (in `exeris-sdk-source-model`), accessed via LSP. The deletion of Corelio-era types is documented in the backend `package-info` and is irreversible without an ADR.
+1. **No parallel metamodel.** The studio-backend holds no domain shape. Anything that looks like a per-repo `EntityDefinition`, `Project`, or `Field` record is a regression — the canonical shape is `DomainMetadata` (in `exeris-sdk-source-model`), accessed via LSP. The deletion of those types is documented in the backend `package-info` and is irreversible without an ADR.
 2. **LSP is the wire boundary.** Studio frontend and IDE plugins do NOT call backend Java directly for model questions. They go through `exeris-platform-lsp` over JSON-RPC (stdio for IDE plugins, WebSocket for Studio frontend). The backend's REST/HTTP surface is for workspace state and project management ONLY — never for domain model questions.
 3. **Idempotent write-back.** The LSP server is the only writer to on-disk sources. Mutations go through `exeris/applyMutation` → the `exeris-sdk-source-model-io` writer; the `MutationOp` / `MutationResult` vocabulary and the conflict semantics are SDK-owned and frozen by ADR-042 — never redefine them platform-side. Applying the same mutation twice must converge to the same on-disk state — no duplicated imports, no shifted line numbers, no whitespace drift between rounds. This is a contract, not a quality of life feature.
 4. **Open-core boundary.** This repo is Apache-2.0. Premium features ship in a separate, closed-source `exeris-platform-enterprise` repository (multi-environment promotion, design-time RBAC, approval workflows, audit dashboards, multi-tenant org management, enterprise-only Studio plugins). Do NOT inline premium-shaped features here — the boundary mirrors the kernel `community / enterprise` split.
@@ -37,7 +37,7 @@ These are not negotiable.
 
 ## Scoped bans
 
-- **No `EntityDefinition` / `PropertyDefinition` / `RelationDefinition` / `Project` / `ProjectStatus` records in `exeris-studio-backend`** — the full list of deliberately-deleted Corelio-era types is in that module's `package-info.java`; their reintroduction is a regression.
+- **No `EntityDefinition` / `PropertyDefinition` / `RelationDefinition` / `Project` / `ProjectStatus` records in `exeris-studio-backend`** — the full list of deliberately-deleted types is in that module's `package-info.java`; their reintroduction is a regression.
 - **No domain-model REST endpoints in `exeris-studio-backend`** — domain shape comes over LSP, not over backend HTTP.
 - **No direct file write-back from Studio frontend** — mutations flow Studio → LSP → `exeris-sdk-source-model-io` writer → disk. The frontend never edits `.java` files directly.
 - **No premium / enterprise feature inlined into open-core modules** — multi-environment, RBAC, approval workflows, audit dashboards, multi-tenant — these belong in `exeris-platform-enterprise`.

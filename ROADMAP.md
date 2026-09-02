@@ -17,7 +17,7 @@ This file tracks scope per milestone. Items marked `[ ]` are open; `[x]` shipped
 - [x] Angular 21 frontend workspace (`exeris-studio-frontend`, separate npm build)
 - [x] Bootstrap stubs that compile (`main.ts`, `app.{component,config,routes}.ts`, `index.html`)
 - [x] Open-core boundary documented: this repo Apache-2.0; premium features in `exeris-platform-enterprise`
-- [x] **No parallel metamodel** — backend `package-info` documents the deliberate deletion of Corelio-era `EntityDefinition`/`PropertyDefinition`/`RelationDefinition`/`Project`. Studio operates exclusively on canonical `DomainMetadata` via LSP
+- [x] **No parallel metamodel** — backend `package-info` documents the deliberate deletion of `EntityDefinition`/`PropertyDefinition`/`RelationDefinition`/`Project`. Studio operates exclusively on canonical `DomainMetadata` via LSP
 
 ## 0.2.0 — quality gates + LSP skeleton
 
