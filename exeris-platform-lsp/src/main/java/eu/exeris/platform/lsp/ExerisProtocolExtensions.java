@@ -30,6 +30,63 @@ public interface ExerisProtocolExtensions {
     @JsonRequest("exeris/domains")
     CompletableFuture<List<DomainSummary>> domains();
 
+    /**
+     * Read this before widening {@link DomainDescription}.
+     *
+     * <p>The temptation is understandable and the mechanics are trivial:
+     * {@code ProtocolProjections.toDescription} already holds the whole
+     * {@link eu.exeris.sdk.sourcemodel.ast.DomainMetadata} and casts three of its ~35 components
+     * onto the wire. Adding {@code relationships} is a projection widening, not data plumbing.
+     * The cost of that change is entirely process — ADR-025's 2026-06-24 amendment pins this
+     * method's shape for {@code exeris-ai-bridge} — and not implementation.
+     *
+     * <p><b>But the facets are not equally real, and the wire cannot afford to pretend they
+     * are.</b> Measured against the {@code exeris-tooling} processor rather than against the AST:
+     *
+     * <ul>
+     *   <li>{@code relationships}, {@code events} (from {@code @DomainEvent}) and
+     *       {@code sagaMetadata} are LIVE — extracted, and consumed by the emitters.</li>
+     *   <li>{@code projections} and {@code eventHandlers} are permanently empty.
+     *       {@code @Projection} and {@code @EventHandler} sit in the processor's own
+     *       {@code UNREAD_NOTES} registry as <em>reserved</em>, design-gated on the behavioural
+     *       corpus. Nothing extracts them, so the lists arrive empty by construction.</li>
+     *   <li>{@code graphMetadata} is partial in a way that is worse than either: edges are read,
+     *       {@code properties} is passed as {@code null} and {@code queries} as an empty list —
+     *       the same "not carried" state spelled two different ways, upstream.</li>
+     * </ul>
+     *
+     * <p>The distinction between "there are none" and "this pipeline does not carry them" is
+     * therefore load-bearing — and it does <b>not</b> need inventing here, which is the easy
+     * mistake. {@code DomainMetadata} is annotated {@code @JsonInclude(NON_NULL)}: a null facet is
+     * omitted from the wire, an empty list is serialized as {@code []}. Null already means "not
+     * carried" and {@code []} already means "none". Gson, which LSP4J uses on this method's
+     * response, omits nulls by default too, so the same reading survives our transport.
+     *
+     * <p>Two things follow, and only one of them is ours.
+     *
+     * <ul>
+     *   <li><b>Ours:</b> a widened {@link DomainDescription} must <em>propagate</em> that
+     *       distinction rather than flatten it. Projecting a null facet into an empty list
+     *       manufactures {@code projections: []} where the model said nothing — and the bridge
+     *       validates and re-emits contract fields, so an agent would read that as "this domain
+     *       declares no projections". A confident falsehood, frozen into a wire format, where
+     *       silence was available.</li>
+     *   <li><b>Upstream's:</b> the convention exists but is applied inconsistently —
+     *       {@code GraphMetadata} passes {@code properties} as null and {@code queries} as an empty
+     *       list for the same "not carried" state. That is a tooling ask, not something to paper
+     *       over with a platform-local convention on top of a model this repo does not own.</li>
+     * </ul>
+     *
+     * <p>Widening this method is an <b>amendment to ADR-025</b>, not a new decision — see
+     * {@code docs/adr/ADR-025.link.md}, which prescribes exactly that for any change to this
+     * surface. This paragraph is that amendment's input rather than something to be rediscovered
+     * at review.
+     *
+     * <p>Provenance, so the amendment's author re-checks rather than trusts: facet liveness and the
+     * {@code UNREAD_NOTES} quotations come from {@code ExerisDomainProcessor} in
+     * {@code exeris-tooling} v0.8.0; {@code NON_NULL} and the component count from
+     * {@code DomainMetadata} in {@code exeris-sdk} v0.11.0. Both are sibling repositories that move.
+     */
     @JsonRequest("exeris/domainDescribe")
     CompletableFuture<DomainDescription> domainDescribe(DomainDescribeParams params);
 
