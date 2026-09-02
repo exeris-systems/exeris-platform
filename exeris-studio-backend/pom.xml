@@ -15,11 +15,11 @@
 
     <name>Exeris Platform :: Studio Backend</name>
     <description>
-        Backend service hosting Studio: project workspace management, on-disk
-        @ExerisDomain source tracking, and a thin REST/HTTP surface consumed by
-        the Studio frontend. Real edit operations flow through exeris-platform-lsp
-        which maintains DomainMetadata as the canonical model — Studio backend
-        does NOT host its own EntityDefinition metamodel.
+        Backend service hosting Studio: the platform's own operational state
+        (workspaces today) and the REST/HTTP surface over it consumed by the Studio
+        frontend. Real edit operations flow through exeris-platform-lsp, which
+        maintains DomainMetadata as the canonical model — this module holds its own
+        state and never a second metamodel of someone else's domain.
     </description>
 
     <dependencies>
@@ -27,5 +27,75 @@
             <groupId>eu.exeris</groupId>
             <artifactId>exeris-sdk-source-model</artifactId>
         </dependency>
+        <!-- @ExerisDomain / @Field on this module's own domain. Compile scope because the
+             annotations are on the sources; they are @Retention(SOURCE), so nothing of them
+             survives into the jar. -->
+        <dependency>
+            <groupId>eu.exeris</groupId>
+            <artifactId>exeris-sdk-annotations</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.assertj</groupId>
+            <artifactId>assertj-core</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>tools.jackson.core</groupId>
+            <artifactId>jackson-databind</artifactId>
+            <scope>test</scope>
+        </dependency>
     </dependencies>
+
+    <build>
+        <plugins>
+            <!--
+                The first dogfooding step, and deliberately only the first.
+
+                exeris-processor is an ordinary annotation processor: it reads @ExerisDomain
+                sources and writes the exeris-metadata/*.json corpus into the build output. That
+                is all it does here. It pulls in no kernel artifact, needs no database, and
+                generates no Java — the corpus is the deliverable.
+
+                What is NOT wired, and must not be added without a decision:
+                exeris-codegen-maven-plugin. That turns the same corpus into a running kernel
+                application — services, repositories, Flyway migrations, handlers — which brings
+                two consequences this repo has explicitly avoided so far. It would put
+                eu.exeris:exeris-kernel-* on this reactor, reversing the stance build.yml states
+                outright ("this repo depends on no kernel artifact ... That is the point rather
+                than an omission"); and generated repositories plus Flyway imply persistence,
+                which ROADMAP schedules at 0.9.0. Persistence here is a sequencing question, not
+                a prohibition — the backend is allowed its own state, including on disk; what it may
+                never hold is domain shape. So the kernel dependency is the live blocker, and the
+                database is simply not this milestone's work.
+
+                Declared on annotationProcessorPaths rather than as a dependency, so the
+                processor runs at compile time without entering the module's own classpath.
+            -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <configuration>
+                    <!-- Version comes from the imported BOM's dependencyManagement, not from a
+                         second reference to a BOM-only property. The property is defined in
+                         exeris-platform-bom's own <properties>, which reaches this module only
+                         through a dependencyManagement import — that merges managed dependencies,
+                         not properties, so naming it here worked by accident of resolution order
+                         rather than by design. One managed entry, one source of truth. -->
+                    <annotationProcessorPathsUseDepMgmt>true</annotationProcessorPathsUseDepMgmt>
+                    <annotationProcessorPaths>
+                        <path>
+                            <groupId>eu.exeris.tooling</groupId>
+                            <artifactId>exeris-processor</artifactId>
+                        </path>
+                    </annotationProcessorPaths>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
 </project>

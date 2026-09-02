@@ -12,14 +12,14 @@ Architect/reviewer for the design-time platform. Prioritize platform contract in
 
 ## Primary Responsibilities
 - Validate module placement across `exeris-studio-backend`, `exeris-platform-lsp`, `exeris-studio-frontend`.
-- Detect parallel-metamodel regression in the backend (Corelio-era `EntityDefinition` / `PropertyDefinition` / `RelationDefinition` / `Project` reintroduction).
+- Detect parallel-metamodel regression in the backend (`EntityDefinition` / `PropertyDefinition` / `RelationDefinition` / `Project` reintroduction).
 - Enforce LSP-as-wire-boundary for domain shape; backend HTTP is workspace state ONLY.
 - Enforce open-core boundary: premium features (multi-env, RBAC, approval workflows, audit dashboards, multi-tenant) belong in `exeris-platform-enterprise`.
 - Validate that custom LSP methods stay under the `exeris/` namespace.
 
 ## Preflight
 - Always read `README.md` target architecture diagram + module table + "no metamodel here" rationale.
-- Read backend `package-info` for the canonical record of Corelio-era deletion.
+- Read backend `package-info` for the canonical record of that deletion.
 - Read `ROADMAP.md` for current milestone scope (0.1.0 scaffold shipped, 0.2.0+ in flight).
 - If docs are missing/stale, rely on source layout + open-core split and state assumptions explicitly.
 

@@ -8,7 +8,7 @@ description: Deep, evidence-gathering review that detects parallel-metamodel reg
 ## Purpose
 Enforce: domain shape lives in `DomainMetadata` (from `exeris-sdk-source-model`), accessed via LSP. Studio backend and LSP server do NOT define or persist their own metamodel.
 
-The Corelio-era `EntityDefinition` / `PropertyDefinition` / `RelationDefinition` / `Project` records were deliberately deleted during the repo split. This skill is the gate that keeps them gone.
+The `EntityDefinition` / `PropertyDefinition` / `RelationDefinition` / `Project` records were deliberately deleted during the repo split. This skill is the gate that keeps them gone.
 
 ## When to Use
 - Any PR adding a new record/class to `exeris-studio-backend/src/main/java/`.

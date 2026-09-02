@@ -31,8 +31,8 @@ The four contract concerns exist as both a `commands/` entry and a `skills/…-r
 Project doctrine is **not** duplicated under `.claude/` to avoid drift:
 
 - **`/CLAUDE.md`** (repo root) — auto-loaded operating context (target architecture, hard constraints, scoped bans, build commands, open-core boundary).
-- **`README.md`** — target architecture diagram, module table, "no metamodel here" rationale (Corelio-era deletion).
+- **`README.md`** — target architecture diagram, module table, "no metamodel here" rationale (the pre-split metamodel deletion).
 - **`ROADMAP.md`** — milestone scope (0.1.0 scaffold shipped, 0.2.0+ in flight, 1.0.0 GA = Studio replaces the IDE for design-time work).
-- **Backend `package-info`** — canonical record of the Corelio-era metamodel deletion.
+- **Backend `package-info`** — canonical record of the metamodel deletion.
 
 When skills/agents need policy context, they reference these — they do not restate them.

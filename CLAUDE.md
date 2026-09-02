@@ -4,13 +4,13 @@ Guardrails for AI assistants working inside `~/exeris-systems/exeris-platform/`.
 
 ## What this repo is — load-bearing facts
 
-`exeris-platform` is the **user-facing platform** of Exeris: Studio (Angular shell + embedded React editor), the LSP server that powers bidirectional sync between Studio / IDE plugins / on-disk `@ExerisDomain` sources, and the thin studio-backend that exposes workspace state.
+`exeris-platform` is the **user-facing platform** of Exeris: Studio (Angular shell + embedded React editor), the LSP server that powers bidirectional sync between Studio / IDE plugins / on-disk `@ExerisDomain` sources, and the studio-backend that holds the platform's own workspace state.
 
 The single most load-bearing fact about this repo:
 
 > **One canonical model, three editing surfaces, idempotent write-back.**
 
-Studio operates **exclusively** on the canonical `DomainMetadata` model defined in [`exeris-sdk-source-model`](../exeris-sdk). The backend deliberately holds **no parallel metamodel**. Corelio-era `EntityDefinition` / `PropertyDefinition` / `RelationDefinition` / `Project` were deleted during the repo split — having two metamodels would have rotted in opposite directions.
+Studio operates **exclusively** on the canonical `DomainMetadata` model defined in [`exeris-sdk-source-model`](../exeris-sdk). The backend deliberately holds **no parallel metamodel**. `EntityDefinition` / `PropertyDefinition` / `RelationDefinition` / `Project` were deleted during the repo split — having two metamodels would have rotted in opposite directions.
 
 **Status:** uneven, and the docs lag the code. `exeris-platform-lsp` is past scaffold — it already depends on `exeris-sdk-source-model-io` (ADR-037), ships the read-only `exeris/*` trio plus `exeris/applyMutation` (ADR-042, recorded as *realized in this repo*), and ships a standalone launcher (`-standalone` shaded jar) that runs with no source tree. The studio-backend and frontend are still largely placeholders. Status claims in `README.md` and `ROADMAP.md` were reconciled with the code in this same change, so they should agree today — but the code is what settles it, so verify against `exeris-platform-lsp` sources rather than assuming any doc kept up. For the split of coordinates: `exeris-sdk-source-model-io` holds the JavaParser parser/writer, `exeris-sdk-source-model` the canonical AST records (kept dependency-light).
 
@@ -18,7 +18,7 @@ Studio operates **exclusively** on the canonical `DomainMetadata` model defined 
 
 These are not negotiable.
 
-1. **No parallel metamodel.** The studio-backend holds no domain shape. Anything that looks like a per-repo `EntityDefinition`, `Project`, or `Field` record is a regression — the canonical shape is `DomainMetadata` (in `exeris-sdk-source-model`), accessed via LSP. The deletion of Corelio-era types is documented in the backend `package-info` and is irreversible without an ADR.
+1. **No parallel metamodel.** The studio-backend holds no domain shape. Anything that looks like a per-repo `EntityDefinition`, `Project`, or `Field` record is a regression — the canonical shape is `DomainMetadata` (in `exeris-sdk-source-model`), accessed via LSP. The deletion of those types is documented in the backend `package-info` and is irreversible without an ADR.
 2. **LSP is the wire boundary.** Studio frontend and IDE plugins do NOT call backend Java directly for model questions. They go through `exeris-platform-lsp` over JSON-RPC (stdio for IDE plugins, WebSocket for Studio frontend). The backend's REST/HTTP surface is for workspace state and project management ONLY — never for domain model questions.
 3. **Idempotent write-back.** The LSP server is the only writer to on-disk sources. Mutations go through `exeris/applyMutation` → the `exeris-sdk-source-model-io` writer; the `MutationOp` / `MutationResult` vocabulary and the conflict semantics are SDK-owned and frozen by ADR-042 — never redefine them platform-side. Applying the same mutation twice must converge to the same on-disk state — no duplicated imports, no shifted line numbers, no whitespace drift between rounds. This is a contract, not a quality of life feature.
 4. **Open-core boundary.** This repo is Apache-2.0. Premium features ship in a separate, closed-source `exeris-platform-enterprise` repository (multi-environment promotion, design-time RBAC, approval workflows, audit dashboards, multi-tenant org management, enterprise-only Studio plugins). Do NOT inline premium-shaped features here — the boundary mirrors the kernel `community / enterprise` split.
@@ -27,7 +27,7 @@ These are not negotiable.
 ## Strong defaults (justified exceptions allowed)
 
 1. **Studio frontend is Angular 21 with an embedded React editor.** Adding a third UI framework requires a justified ADR — the embedded-React choice was deliberate (editor surface) and not an open invitation. Node 24+ is required (per `package.json` engines field).
-2. **Backend is thin.** `exeris-studio-backend` exposes workspace state and a small REST/HTTP surface for the Studio frontend. It is NOT a domain server, NOT a tx coordinator, NOT a persistence layer. Classes carrying domain shape are a smell; route the work through the LSP server.
+2. **The backend holds its own state, never someone else's shape.** This default used to read "backend is thin", and that was the wrong test — it measured size when the concern was kind. `exeris-studio-backend` may hold as much operational state as its own job requires (workspaces, sessions, deployment history, whatever the control plane turns out to need) and may persist it; `ROADMAP.md` schedules exactly that at 0.9.0. What it must never hold is **domain** shape — anything that could answer "what fields does this entity have" without asking the LSP. A `Workspace` record is the backend's own state and is fine; an `EntityDefinition` beside it is the regression hard constraint 1 bans. It is also not a runtime for user domains: no transaction coordination, no request path for someone else's entities. The test is *whose shape the data describes*, not how many classes there are.
 3. **Tailwind via the `exeris-sdk-ui-kit` preset** (0.4.0 direction). Component library inherits the kit; don't ship a competing design system inside Studio.
 4. **LSP transports**: stdio for IDE plugins, WebSocket for Studio frontend. Both speak the same JSON-RPC. Don't fork the method surface per transport.
 5. **Sibling-repo orchestration** is currently in-job (clone + `mvn install` each upstream) per the 0.2.0 CI plan. A SNAPSHOT registry is a future option, not a near-term commitment.
@@ -37,7 +37,7 @@ These are not negotiable.
 
 ## Scoped bans
 
-- **No `EntityDefinition` / `PropertyDefinition` / `RelationDefinition` / `Project` / `ProjectStatus` records in `exeris-studio-backend`** — the full list of deliberately-deleted Corelio-era types is in that module's `package-info.java`; their reintroduction is a regression.
+- **No `EntityDefinition` / `PropertyDefinition` / `RelationDefinition` / `Project` / `ProjectStatus` records in `exeris-studio-backend`** — the full list of deliberately-deleted types is in that module's `package-info.java`; their reintroduction is a regression.
 - **No domain-model REST endpoints in `exeris-studio-backend`** — domain shape comes over LSP, not over backend HTTP.
 - **No direct file write-back from Studio frontend** — mutations flow Studio → LSP → `exeris-sdk-source-model-io` writer → disk. The frontend never edits `.java` files directly.
 - **No premium / enterprise feature inlined into open-core modules** — multi-environment, RBAC, approval workflows, audit dashboards, multi-tenant — these belong in `exeris-platform-enterprise`.

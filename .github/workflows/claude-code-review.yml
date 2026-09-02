@@ -42,8 +42,10 @@ jobs:
             REPO: ${{ github.repository }}
             PR NUMBER: ${{ github.event.pull_request.number }}
 
-            Review this PR. The repo is a Java 26 / Maven project in the Exeris
-            open-core stack.
+            Review this PR. The repo is a Java + Maven project in the Exeris
+            open-core stack. The JDK floor is whatever `maven.compiler.release`
+            in the root POM says — read it there rather than assuming a number,
+            because it moves and a number written here goes stale silently.
 
             Focus on:
             1. **Correctness** — bugs, edge cases, broken contracts, merge artifacts
@@ -52,8 +54,12 @@ jobs:
                in scope that's missing? Anything out of scope that should be split?
             3. **Public API** — flag anything that would need deprecation handling
                before 1.0.0 freezes the contract
-            4. **Build / publish** — POM correctness, missing javadoc/sources jars
-               on publishable modules, Maven Central metadata gaps
+            4. **Build / publish** — POM correctness, and whether a publishable
+               module would actually publish. Note this repo deploys to GitHub
+               Packages, NOT Maven Central: Central is deferred until the rest of
+               the stack is there (see the <distributionManagement> comment in the
+               root POM), so absent signing, sources and javadoc jars are the
+               current decision rather than a gap to report.
             5. **Risk** — call out functional, security, performance risks
                explicitly (state "none" if applicable; don't pad)
 
