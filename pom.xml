@@ -5,7 +5,7 @@
 
     <groupId>eu.exeris.platform</groupId>
     <artifactId>exeris-platform-root</artifactId>
-    <version>0.1.0-SNAPSHOT</version>
+    <version>0.3.0-SNAPSHOT</version>
     <packaging>pom</packaging>
 
     <name>Exeris Platform :: Root</name>
@@ -79,11 +79,9 @@
         platform artifact to an immutable repository while its own dependencies resolve from
         nowhere would strand every consumer that tried to use it.
 
-        And when it is wired, Central publishing is TAG-TRIGGERED, not dispatch-triggered: a
-        Central version is spent the moment it is published, so the tag is what nominates the
-        commit and there is no free-text version input to mistype. GitHub Packages keeps the
-        current shape (snapshots on main, dispatch for releases) — the two channels differ because
-        one is reversible and the other is not.
+        When it is wired it rides the same trigger everything else does: a release is a TAG. Both
+        registries are fed by one cut, so a version can never exist on one and not the other. See
+        .github/workflows/publish.yml.
     -->
     <distributionManagement>
         <repository>

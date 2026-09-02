@@ -30,9 +30,12 @@ This file tracks scope per milestone. Items marked `[ ]` are open; `[x]` shipped
       (`Main-Class: eu.exeris.platform.lsp.LspMain`) that runs as `java -jar` with no source tree
       and no Maven. `LauncherIT` starts that jar in a separate process on every build and drives a
       real LSP session through it, including two applies of the same `MutationOp`
-- [x] **Publish pipeline** — `.github/workflows/publish.yml`: SNAPSHOTs to GitHub Packages on push
-      to `main`, and a `workflow_dispatch` release that tags, deploys and attaches the launcher as
-      a release asset. Defaults to a dry run. Maven Central stays a 1.0.0 concern (see below)
+- [x] **Publish pipeline** — `.github/workflows/publish.yml`. **A release is a tag and nothing
+      else**: pushing `v<x.y.z>` builds, gates on `LauncherIT`, deploys to GitHub Packages and cuts
+      the GitHub Release with the launcher attached. `workflow_dispatch` is a dry run that touches
+      nothing remote. Deliberately not on push to `main` — a whole development line shares one
+      `-SNAPSHOT` coordinate, so publishing per merge yields artifacts that share a coordinate and
+      differ in content. Maven Central rides the same tag when it is wired (see 1.0.0)
 - [x] **JDK floor at 25** — the reactor compiles to `release 25`, matching `exeris-kernel`,
       `exeris-sdk` v0.10.0 and `exeris-tooling` v0.7.0, so a consumer running the launcher beside
       `exeris-kernel-diagnostics-cli` has one JDK requirement rather than two. CI builds 25 and 26
@@ -46,7 +49,6 @@ This file tracks scope per milestone. Items marked `[ ]` are open; `[x]` shipped
 - [x] `exeris/domainDescribe` — full read-only view of one domain, projected from `DomainMetadata`
 - [x] `exeris/actions` — enumerate actions with their owning domain
 - [x] `exeris/applyMutation` — apply one `MutationOp` and return `MutationResult` (ADR-042)
-- [ ] WebSocket transport (Studio frontend) alongside stdio transport (IDE plugins)
 
 > The read surface shipped as the `exeris/domains` + `exeris/domainDescribe` + `exeris/actions`
 > trio rather than the single `exeris/entityModel` this milestone originally named. Two other
@@ -59,6 +61,9 @@ This file tracks scope per milestone. Items marked `[ ]` are open; `[x]` shipped
 
 > Goal: Studio shows entities and lets users do read-only inspection.
 
+- [ ] WebSocket transport (Studio frontend) alongside stdio transport (IDE plugins) — moved here
+      from 0.3.0: 0.3.0's goal is the method surface, and the transport exists to serve the very
+      frontend this milestone wires up. Same JSON-RPC surface on both transports, never a fork
 - [ ] Workspace tree view (entities, capabilities, sagas)
 - [ ] Entity detail view (fields, actions, relationships) — read-only
 - [ ] Tailwind-based component library (using `exeris-sdk-ui-kit` preset)
@@ -118,7 +123,8 @@ This file tracks scope per milestone. Items marked `[ ]` are open; `[x]` shipped
       upstream**: `exeris-kernel` 0.12.0 (in development), `exeris-sdk` 0.12.0 and `exeris-tooling`
       0.9.0 have to be on Central before these coordinates can be, or a consumer resolves a
       published artifact whose dependencies are published nowhere. Tag-triggered when it lands, and
-      disabled until then; GitHub Packages carries releases in the meantime (0.2.0)
+      disabled until then. It rides the same tag trigger as the Packages deploy — one cut, both
+      registries. GitHub Packages carries releases in the meantime (0.2.0)
 - [ ] npm registry release for `@exeris/studio-frontend` (and Studio Docker image)
 
 ---
@@ -127,6 +133,22 @@ This file tracks scope per milestone. Items marked `[ ]` are open; `[x]` shipped
 
 - **0.x** — LSP custom methods may change in any release; plugin authors track main
 - **1.x** — `exeris/*` LSP methods semver-stable; Studio internal APIs may still evolve
+
+### Cutting a release
+
+The reactor version names the release the current line will *become*, so trunk sits on
+`<next>-SNAPSHOT` and `main` never carries a release version.
+
+1. Finish the milestone's scope and tick its boxes here.
+2. Push the tag: `git tag v<x.y.z> && git push origin v<x.y.z>`. `publish.yml` refuses a tag that
+   does not match the trunk's line, that is not on `main`, or whose `LauncherIT` fails — so a
+   mistyped tag costs nothing.
+3. Enter the next line: `mvn versions:set -DnewVersion=<next>-SNAPSHOT -DgenerateBackupPoms=false`,
+   bump `exeris-studio-frontend/package.json` to match, commit as
+   `chore: enter <next> development`.
+
+`workflow_dispatch` on `publish.yml` runs the whole path without publishing; use it before a cut
+rather than discovering a broken release path with a version already spent.
 
 ## Tracking
 
