@@ -132,6 +132,16 @@
                 <artifactId>jakarta.servlet-api</artifactId>
                 <version>${jakarta.servlet.version}</version>
             </dependency>
+            <!-- ServletContextHandler, which LspWebSocketServer imports directly. It arrives
+                 transitively through the websocket-jakarta-server artifact above, at the same
+                 jetty.version, so this changes nothing today — it names a dependency the code
+                 actually uses instead of letting an import ride on someone else's dependency
+                 graph. The same reason jakarta.websocket-api is pinned rather than resolved. -->
+            <dependency>
+                <groupId>org.eclipse.jetty.ee10</groupId>
+                <artifactId>jetty-ee10-servlet</artifactId>
+                <version>${jetty.version}</version>
+            </dependency>
 
             <!-- JSON: gson is LSP4J's wire layer (JsonElement boundary for exeris/applyMutation);
                  jackson-databind 3 (de)serializes the SDK's polymorphic mutation shapes per the

@@ -1,5 +1,8 @@
 package eu.exeris.platform.lsp;
 
+import java.net.InetAddress;
+import java.net.UnknownHostException;
+
 /**
  * Parsed command line for {@link LspMain}.
  *
@@ -74,8 +77,22 @@ record LauncherOptions(Transport transport, String host, int port) {
         return parsed;
     }
 
-    /** True when the socket is reachable from beyond this machine. */
+    /**
+     * True when the socket is reachable from beyond this machine.
+     *
+     * <p>Asks the address rather than matching the string. Loopback has more spellings than a
+     * literal list survives — {@code ::1}, {@code [::1]}, {@code 0:0:0:0:0:0:0:1}, anything in
+     * {@code 127.0.0.0/8}, and any hostname that resolves into it — and every one it fails to
+     * recognise produces a warning that is simply wrong, which is how warnings stop being read.
+     *
+     * <p>An unresolvable host counts as exposed. That is the safe direction: the bind will fail
+     * anyway, and a warning about a host nobody can look up is better than silence about one.
+     */
     boolean bindsBeyondLoopback() {
-        return !DEFAULT_HOST.equals(host) && !"localhost".equals(host) && !"::1".equals(host);
+        try {
+            return !InetAddress.getByName(host).isLoopbackAddress();
+        } catch (UnknownHostException cannotTell) {
+            return true;
+        }
     }
 }

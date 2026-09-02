@@ -89,6 +89,10 @@ class WebSocketLauncherIT {
             .configure(DeserializationFeature.FAIL_ON_NULL_FOR_PRIMITIVES, false)
             .build();
 
+    /** RFC 6455 1002. Spelled out because {@code java.net.http.WebSocket} exposes a constant for
+        NORMAL_CLOSURE and for nothing else. */
+    private static final int PROTOCOL_ERROR_CLOSE_CODE = 1002;
+
     private Process server;
 
     @AfterEach
@@ -186,6 +190,31 @@ class WebSocketLauncherIT {
                     .as("the server still answers after another client exited")
                     .hasSize(1);
         }
+    }
+
+    @Test
+    @Timeout(120)
+    void exitWithoutShutdownIsReportedAsAProtocolError(@TempDir Path workspace) throws Exception {
+        Files.writeString(sourceIn(workspace), ORDER);
+        int port = freePort();
+        server = launch(port);
+        awaitListening(port);
+
+        try (LspSocket socket = LspSocket.connect(port)) {
+            socket.call(1, "initialize", initializeParams(workspace));
+            // No shutdown. The LSP spec makes this the client's error, and the stdio server says
+            // so with exit code 1 — the socket has to say it too, or a misbehaving client has no
+            // way to learn it got the sequence wrong.
+            socket.notify("exit");
+
+            assertThat(socket.awaitClose())
+                    .as("exit without a preceding shutdown closes with a protocol error")
+                    .isEqualTo(PROTOCOL_ERROR_CLOSE_CODE);
+        }
+
+        assertThat(server.isAlive())
+                .as("even a protocol error ends the session only")
+                .isTrue();
     }
 
     // --- process + socket plumbing ---------------------------------------------------

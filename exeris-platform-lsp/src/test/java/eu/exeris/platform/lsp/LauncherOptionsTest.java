@@ -38,12 +38,31 @@ class LauncherOptionsTest {
 
     @Test
     void loopbackSpellingsAreAllRecognisedAsLoopback() {
-        for (String host : new String[] {"127.0.0.1", "localhost", "::1"}) {
+        // Every one of these is loopback, and a string-matching check got three of them wrong.
+        // A warning that fires on a safe bind is a warning people stop reading.
+        for (String host : new String[] {
+                "127.0.0.1", "localhost", "::1", "[::1]", "0:0:0:0:0:0:0:1", "127.0.0.2"}) {
             assertThat(LauncherOptions.parse(new String[] {"--websocket", "--host", host})
                     .bindsBeyondLoopback())
                     .as("%s is loopback", host)
                     .isFalse();
         }
+    }
+
+    @Test
+    void routableAndUnresolvableHostsBothCountAsExposed() {
+        for (String host : new String[] {"0.0.0.0", "192.0.2.1"}) {
+            assertThat(LauncherOptions.parse(new String[] {"--websocket", "--host", host})
+                    .bindsBeyondLoopback())
+                    .as("%s is not loopback", host)
+                    .isTrue();
+        }
+        // Cannot be resolved, so cannot be shown to be safe. Warning is the safe direction: the
+        // bind will fail anyway, and silence about an unknown host is worse than a stray warning.
+        assertThat(LauncherOptions.parse(
+                        new String[] {"--websocket", "--host", "no.such.host.invalid"})
+                .bindsBeyondLoopback())
+                .isTrue();
     }
 
     @Test
