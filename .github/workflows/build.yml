@@ -33,9 +33,9 @@ jobs:
         #
         # The row that used to sit here alone was 26, on the grounds that this job built
         # exeris-tooling from `main`, whose enforcer was then `[26,27)`. PR #20 pinned that
-        # checkout to the v0.7.0 tag, and the tag's enforcer is `[25,)` with
-        # maven.compiler.release 25 — so the stated blocker had already lapsed. exeris-sdk
-        # v0.10.0 is release 25 too, and exeris-kernel has been on 25 all along.
+        # checkout to a release tag, and the tag's enforcer is `[25,)` with
+        # maven.compiler.release 25 — so the stated blocker had already lapsed. Still true at
+        # tooling v0.8.0 and sdk v0.11.0, both release 25; exeris-kernel has been on 25 all along.
         java: ['25', '26']
 
     steps:
@@ -44,23 +44,22 @@ jobs:
         with:
           path: exeris-platform
 
-      - name: Checkout exeris-sdk (v0.10.0 — matches exeris.sdk.version in the BOM)
+      - name: Checkout exeris-sdk (v0.11.0 — matches exeris.sdk.version in the BOM)
         uses: actions/checkout@v4
         with:
           repository: exeris-systems/exeris-sdk
-          ref: v0.10.0
+          ref: v0.11.0
           path: exeris-sdk
 
-      # Pinned to the release tag, as exeris-sdk already is. Tracking main was a stopgap
-      # while tooling had no release; v0.7.0 was cut on 2026-08-18 and main became
-      # 0.8.0-SNAPSHOT the same moment, so a main-tracking build stopped producing the
-      # version this repo's BOM asks for. An immutable ref also stops an unrelated upstream
-      # commit from turning this build red.
-      - name: Checkout exeris-tooling (v0.7.0 — matches exeris.tooling.version in the BOM)
+      # Pinned to the release tag, as exeris-sdk is. An immutable ref stops an unrelated
+      # upstream commit from turning this build red, and keeps the checkout in step with
+      # exeris.tooling.version in the BOM — bump one without the other and this silently
+      # builds against an upstream the POMs never asked for.
+      - name: Checkout exeris-tooling (v0.8.0 — matches exeris.tooling.version in the BOM)
         uses: actions/checkout@v4
         with:
           repository: exeris-systems/exeris-tooling
-          ref: v0.7.0
+          ref: v0.8.0
           path: exeris-tooling
 
       - name: Set up JDK ${{ matrix.java }}

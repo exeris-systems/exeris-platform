@@ -95,18 +95,18 @@ jobs:
       # Maven repository, so every build installs them from source. The refs MUST stay in step with
       # exeris.sdk.version / exeris.tooling.version in exeris-platform-bom — a bump that updates one
       # and not the other silently builds against the wrong upstream.
-      - name: Checkout exeris-sdk (v0.10.0 — matches exeris.sdk.version in the BOM)
+      - name: Checkout exeris-sdk (v0.11.0 — matches exeris.sdk.version in the BOM)
         uses: actions/checkout@v4
         with:
           repository: exeris-systems/exeris-sdk
-          ref: v0.10.0
+          ref: v0.11.0
           path: exeris-sdk
 
-      - name: Checkout exeris-tooling (v0.7.0 — matches exeris.tooling.version in the BOM)
+      - name: Checkout exeris-tooling (v0.8.0 — matches exeris.tooling.version in the BOM)
         uses: actions/checkout@v4
         with:
           repository: exeris-systems/exeris-tooling
-          ref: v0.7.0
+          ref: v0.8.0
           path: exeris-tooling
 
       # 25, the floor this repo compiles to. Building the artifact on the oldest JDK it claims to
