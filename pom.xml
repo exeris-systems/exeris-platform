@@ -107,10 +107,11 @@
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
-        <!-- 25, matching exeris-kernel (release 25), exeris-sdk v0.10.0 (release 25) and
-             exeris-tooling v0.7.0 (release 25, enforcer [25,)). This repo sat on 26 while its CI
+        <!-- 25, matching exeris-kernel (release 25), exeris-sdk v0.11.0 (release 25) and
+             exeris-tooling v0.8.0 (release 25, enforcer [25,)). This repo sat on 26 while its CI
              tracked exeris-tooling's `main`, whose enforcer was then [26,27); PR #20 pinned that
-             checkout to the v0.7.0 tag and the constraint left with it.
+             checkout to a release tag and the constraint left with it. Verify against the versions
+             exeris-platform-bom actually pins, not against this comment, when either moves.
 
              Load-bearing for a consumer, not a preference: exeris-platform-lsp ships a standalone
              launcher, and exeris-ai-bridge runs it beside exeris-kernel-diagnostics-cli. Emitting
