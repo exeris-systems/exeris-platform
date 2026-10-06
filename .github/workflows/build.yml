@@ -13,54 +13,27 @@ jobs:
   java:
     name: mvn install (JDK ${{ matrix.java }})
     runs-on: ubuntu-latest
-    # No packages:read, and no Packages credential anywhere in this job. That is the
-    # point rather than an omission: this repo depends on no kernel artifact and
-    # declares no Packages repository in any POM. The credential that used to live
-    # here existed solely to service a transitive demand from a tooling module this
-    # repo does not consume — see the tooling install step below.
+    # No packages:read and no registry credential anywhere in this job. Every dependency —
+    # the Exeris stack included (eu.exeris:exeris-kernel-*, eu.exeris:exeris-sdk-*,
+    # eu.exeris.tooling:*) — resolves from Maven Central at the versions exeris-platform-bom
+    # pins, so a fresh clone builds with nothing but a JDK and Maven.
     strategy:
       fail-fast: false
       matrix:
         # Both ends of the supported range, and each row earns its place.
         #
-        # 25 is the floor the reactor now compiles to (maven.compiler.release in the root POM)
-        # and the JDK exeris-platform-lsp's standalone launcher claims to run on. `release 25`
+        # 25 is the floor the reactor compiles to (maven.compiler.release in the root POM) and
+        # the JDK exeris-platform-lsp's standalone launcher claims to run on. `release 25`
         # settles the bytecode; only building and running LauncherIT under a 25 runtime shows
         # the artifact actually starts there.
         #
-        # 26 keeps the newest JDK from breaking silently — it is what a developer machine here
-        # runs, and the row that would catch a JDK-26 regression in a dependency.
-        #
-        # The row that used to sit here alone was 26, on the grounds that this job built
-        # exeris-tooling from `main`, whose enforcer was then `[26,27)`. PR #20 pinned that
-        # checkout to a release tag, and the tag's enforcer is `[25,)` with
-        # maven.compiler.release 25 — so the stated blocker had already lapsed. Still true at
-        # tooling v0.8.0 and sdk v0.11.0, both release 25; exeris-kernel has been on 25 all along.
+        # 26 keeps the newest JDK from breaking silently — the row that would catch a JDK-26
+        # regression in a dependency.
         java: ['25', '26']
 
     steps:
-      - name: Checkout exeris-platform
+      - name: Checkout
         uses: actions/checkout@v4
-        with:
-          path: exeris-platform
-
-      - name: Checkout exeris-sdk (v0.11.0 — matches exeris.sdk.version in the BOM)
-        uses: actions/checkout@v4
-        with:
-          repository: exeris-systems/exeris-sdk
-          ref: v0.11.0
-          path: exeris-sdk
-
-      # Pinned to the release tag, as exeris-sdk is. An immutable ref stops an unrelated
-      # upstream commit from turning this build red, and keeps the checkout in step with
-      # exeris.tooling.version in the BOM — bump one without the other and this silently
-      # builds against an upstream the POMs never asked for.
-      - name: Checkout exeris-tooling (v0.8.0 — matches exeris.tooling.version in the BOM)
-        uses: actions/checkout@v4
-        with:
-          repository: exeris-systems/exeris-tooling
-          ref: v0.8.0
-          path: exeris-tooling
 
       - name: Set up JDK ${{ matrix.java }}
         uses: actions/setup-java@v4
@@ -69,59 +42,14 @@ jobs:
           java-version: ${{ matrix.java }}
           cache: maven
 
-      # japicmp.skip mirrors what the SDK's own CI passes, and it is required from v0.10.0
-      # on: that release bound a `semver-gate` japicmp execution to `verify`, which `install`
-      # runs. The gate resolves the previous release jar as its baseline, and `eu.exeris`
-      # artifacts are not on Maven Central yet (deliberately — the SDK does not move to
-      # Central before the kernel does), so a runner has nothing to resolve. An absent
-      # baseline is configured to FAIL rather than report "no breaks found", which is the
-      # correct posture for the SDK and simply not our gate to run: we build its jars to
-      # get artifacts into the local repo, not to police its semver.
-      - name: Install exeris-sdk to local Maven repo
-        working-directory: exeris-sdk
-        run: mvn -B -ntp -DskipTests -Djapicmp.skip=true install
-
-      # Select what a consumer needs, and name the BOM explicitly.
-      #
-      # The problem: tooling's exeris-e2e-tests declares exeris-kernel-{spi,core,community,
-      # community-testkit} at test scope, and those live on GitHub Packages behind a
-      # credential this workflow has no reason to hold. Three attempts, each measured:
-      #
-      #   -DskipTests / -Dmaven.test.skip=true   Maven collects a module's dependency graph
-      #   whether or not its tests compile, so the kernel is still demanded and the build
-      #   still 401s. The module must leave the reactor, not merely go quiet.
-      #
-      #   -pl '!exeris-e2e-tests'   moves the failure one hop, to -rf :exeris-coverage-aggregate,
-      #   which declares exeris-e2e-tests at provided scope to find its jacoco.exec. A blacklist
-      #   also rots silently: it breaks again whenever tooling gains a module.
-      #
-      #   -pl exeris-processor,exeris-codegen-maven-plugin -am   is forward-safe but omits
-      #   exeris-tooling-bom. The BOM is imported by exeris-tooling-parent inside
-      #   dependencyManagement, and -am traverses parent and dependency edges but not BOM
-      #   imports — so it installs a plugin whose POM cannot be read back. That resolves on a
-      #   developer machine with a warm ~/.m2 and 401s on a clean one, which is what CI always
-      #   has. exeris-caps-cors-policy build 32106825475 died exactly there:
-      #   "exeris-tooling-bom:pom:0.7.0-SNAPSHOT (absent) ... 401".
-      #
-      # Naming the BOM alongside the two entry points keeps the allowlist's forward-safety —
-      # a new tooling module is invisible here unless something named depends on it — and
-      # closes the gap. exeris-codegen-core, the only tooling artifact a consumer's BOM
-      # manages, arrives transitively via exeris-codegen-maven-plugin -> exeris-codegen-java.
-      #
-      # Verified from an empty -Dmaven.repo.local, not a warm one: 7 modules build, the BOM
-      # lands, and a downstream consumer resolves the plugin. Tooling's own CI is what runs
-      # tooling's tests and publishes its coverage.
-      - name: Install exeris-tooling to local Maven repo (kernel-free reactor)
-        working-directory: exeris-tooling
-        run: mvn -B -ntp -DskipTests install -pl exeris-tooling-bom,exeris-processor,exeris-codegen-maven-plugin -am
-
-      - name: mvn -B install (exeris-platform)
-        working-directory: exeris-platform
+      - name: mvn -B install
         run: mvn -B -ntp install
 
   frontend:
-    name: ng build (Node ${{ matrix.node }})
+    name: ng build + test (Node ${{ matrix.node }})
     runs-on: ubuntu-latest
+    # No npm credential: @exeris/ui-kit and @exeris/codegen-ts are public packages on npmjs,
+    # so `npm ci` needs nothing but the lockfile.
     strategy:
       fail-fast: false
       matrix:
@@ -145,3 +73,44 @@ jobs:
       - name: ng build
         working-directory: exeris-studio-frontend
         run: npm run build
+
+      - name: ng test
+        working-directory: exeris-studio-frontend
+        run: npm run test
+
+      # Generated-source drift check. src/app/generated is committed output of
+      # @exeris/codegen-ts over the exeris-metadata corpus exeris-studio-backend's annotation
+      # processor emits at compile time. Regenerating from the current backend sources must
+      # reproduce the committed tree exactly; any difference means a backend @ExerisDomain
+      # change (or a codegen version move) landed without its regenerated screens.
+      #
+      # Ordered as: Maven compile of the backend (the corpus) -> codegen -> compare. It runs
+      # here rather than in the java job because codegen needs node_modules, and here rather
+      # than in a job of its own because this job has already paid for `npm ci`.
+      - name: Set up JDK 25 (codegen corpus)
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '25'
+          cache: maven
+
+      - name: Compile exeris-studio-backend (emits exeris-metadata)
+        run: mvn -B -ntp -pl exeris-studio-backend -am compile
+
+      - name: Regenerate src/app/generated
+        working-directory: exeris-studio-frontend
+        run: npm run codegen
+
+      - name: Generated sources match the committed tree
+        working-directory: exeris-studio-frontend
+        run: |
+          set -euo pipefail
+          # --porcelain, not `git diff`: a newly emitted file is untracked, and `git diff`
+          # does not see untracked files.
+          drift=$(git status --porcelain -- src/app/generated)
+          if [ -n "$drift" ]; then
+            echo "::error::src/app/generated is out of date. Run 'mvn -pl exeris-studio-backend -am compile' then 'npm run codegen' in exeris-studio-frontend, and commit the result." >&2
+            echo "$drift" >&2
+            git --no-pager diff --stat -- src/app/generated >&2
+            exit 1
+          fi

@@ -55,7 +55,7 @@ P5. **No composition runtime** (`composition-runtime-placement.md`). Composition
 
 P6. **Where a Studio surface gets its shape** (`studio-surface-sourcing.md`, `frontend-stack.md`). A
     generated screen used as the source of truth for a user's domain → `[HARD BLOCK]`. A third UI
-    framework, or a design system beside `@exeris-systems/ui-kit`, without an ADR → `[CONTRACT]`.
+    framework, or a design system beside `@exeris/ui-kit`, without an ADR → `[CONTRACT]`.
 
 P7. **The standalone launcher is a consumer contract** (`standalone-launcher-contract.md`).
     Deleting or skipping `LauncherIT`, or moving it out of failsafe → `[HARD BLOCK]`. Raising

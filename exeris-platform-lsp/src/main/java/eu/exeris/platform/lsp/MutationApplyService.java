@@ -11,9 +11,8 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Optional;
-import tools.jackson.databind.DeserializationFeature;
+import java.util.concurrent.locks.ReentrantLock;
 import tools.jackson.databind.ObjectMapper;
-import tools.jackson.databind.json.JsonMapper;
 
 /**
  * Backs {@code exeris/applyMutation}: applies one {@link MutationOp} to an on-disk
@@ -31,17 +30,34 @@ import tools.jackson.databind.json.JsonMapper;
  * verdict that actually changes bytes; a convergent op is a {@code SUCCESS} no-op and is not
  * rewritten. Since the underlying writer is idempotent, applying the same op twice converges to
  * identical on-disk state. The index is invalidated only when bytes changed.
+ *
+ * <p><b>One writer per file at a time.</b> Each transport session owns its own server and so its
+ * own instance of this service, and sessions run concurrently. The read → apply → write of one
+ * source is therefore serialised per file across the whole process: a second op on the same file
+ * reads the bytes the first one wrote and is judged against them (merged, or reported as a
+ * {@code CONFLICT}), instead of overwriting them with a result computed from stale input.
  */
 final class MutationApplyService {
 
     /** SDK consumer contract: Jackson 3 with null→primitive coercion tolerated (AST package-info). */
-    private static final ObjectMapper MAPPER = JsonMapper.builder()
-            .configure(DeserializationFeature.FAIL_ON_NULL_FOR_PRIMITIVES, false)
-            .build();
+    private static final ObjectMapper MAPPER = SdkJson.MAPPER;
 
-    // Shared across requests. Safe because LSP4J dispatches messages on a single reader thread
-    // (sequential), and MAPPER is a thread-safe Jackson mapper; the applier holds no per-call
-    // mutable state. If the server ever moves to async / thread-pool dispatch, revisit this.
+    /**
+     * Process-wide lock stripes, chosen by the hash of the file's real path, so every path that
+     * reaches one file (a symlink included) takes the same lock. A fixed stripe count keeps the
+     * memory bounded however many files a long-lived launcher writes; two files that share a stripe
+     * only take turns, which costs latency and never correctness.
+     */
+    private static final ReentrantLock[] FILE_LOCKS = new ReentrantLock[64];
+
+    static {
+        for (int i = 0; i < FILE_LOCKS.length; i++) {
+            FILE_LOCKS[i] = new ReentrantLock();
+        }
+    }
+
+    // MAPPER is a thread-safe Jackson mapper and the applier holds no per-call mutable state, so
+    // both are safe to share between concurrent calls; the file itself is guarded by FILE_LOCKS.
     private final SourceModelMutationApplier applier = new SourceModelMutationApplier();
 
     /**
@@ -78,6 +94,27 @@ final class MutationApplyService {
         }
         Path file = target.get().sourcePath();
 
+        ReentrantLock lock = FILE_LOCKS[Math.floorMod(lockKey(file).hashCode(), FILE_LOCKS.length)];
+        lock.lock();
+        try {
+            return applyToFile(op, params, file, onSourcesChanged);
+        } finally {
+            lock.unlock();
+        }
+    }
+
+    /** The file's real path; a path that cannot be resolved (the read reports why) keys by itself. */
+    private static Path lockKey(Path file) {
+        try {
+            return file.toRealPath();
+        } catch (IOException _) {
+            return file.toAbsolutePath().normalize();
+        }
+    }
+
+    /** The read → apply → write of one source; the caller holds that file's lock. */
+    private JsonElement applyToFile(MutationOp op, ApplyMutationParams params, Path file,
+                                    Runnable onSourcesChanged) {
         String current;
         try {
             current = Files.readString(file);

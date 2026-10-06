@@ -16,69 +16,80 @@
     <description>Bill of materials for platform modules and third-party deps.</description>
 
     <properties>
-        <!-- Keep in sync with the sibling checkout refs in .github/workflows/build.yml.
-             A bump here that forgets the workflow ref silently builds the wrong version.
+        <!-- The Exeris stack resolves from Maven Central like any other dependency: kernel, sdk and
+             tooling are all published there, so the build holds no sibling checkout and these three
+             properties are the only place the Maven side names the stack versions.
 
-             Both are pinned to RELEASES and both workflows check out the immutable tags
-             rather than a moving ref — a moving ref lets an unrelated upstream commit turn
-             this build red.
+             exeris-sdk-bom is IMPORTED below rather than restated, so the SDK modules and the
+             third-party versions the SDK is built and tested against (Jackson among them) have one
+             source of truth: bumping exeris.sdk.version moves them together.
 
-             exeris-tooling is still referenced by dependencyManagement ONLY: no module
-             declares a dependency on exeris-codegen-core and no Java source imports
-             eu.exeris.tooling. That is the dogfooding gap, not an oversight. 0.8.0 is what
-             makes closing it possible: it carries exeris-codegen-ts (`@exeris/codegen-ts`,
-             an npm package outside this reactor and versioned separately, hence absent from
-             the tooling POM's <modules>), which generates an Angular 21 front from the same
-             exeris-metadata/*.json corpus codegen-java reads. -->
-        <exeris.sdk.version>0.11.0</exeris.sdk.version>
-        <exeris.tooling.version>0.8.0</exeris.tooling.version>
+             From exeris-tooling, exeris-processor is the one artifact a module consumes — the
+             annotation processor exeris-studio-backend runs to emit its exeris-metadata/*.json
+             corpus; exeris-codegen-core is managed but not consumed. The same corpus feeds
+             `@exeris/codegen-ts`, the npm half of the tooling release (outside the tooling Maven
+             reactor), which generates the Studio's own Angular 22 screens under
+             exeris-studio-frontend/src/app/generated. The devDependency in
+             exeris-studio-frontend/package.json names the same tooling version as this property;
+             move both together. -->
+        <exeris.sdk.version>0.12.0</exeris.sdk.version>
+        <exeris.tooling.version>0.9.0</exeris.tooling.version>
+        <exeris.kernel.version>0.12.0</exeris.kernel.version>
 
         <lsp4j.version>0.23.1</lsp4j.version>
 
-        <!-- exeris/applyMutation transports the SDK-owned MutationOp / MutationResult shapes,
-             which are Jackson-polymorphic (op/outcome discriminators). LSP4J serializes with
-             Gson (which ignores @JsonTypeInfo), so the server (de)serializes those payloads with
-             the SDK's Jackson 3 contract instead.
-             Pinned to 3.2.0 (NOT the SDK BOM's 3.1.2). The CVE history forced two bumps:
-               - 3.1.2 → 3.1.4 cleared CVE-2026-54512/54513/54514/54517/54518 (two critical);
-               - 3.1.4 → 3.2.0 clears CVE-2026-54515 (CWE-915); there is no 3.1.5, so 3.2.0 is the fix.
-             We deliberately run AHEAD of the SDK. Our usage is minimal and version-robust
-             (JsonMapper.builder + readValue/writeValueAsString/valueToTree), and the mutation
-             polymorphism is the SAFE form — @JsonTypeInfo(use=Id.NAME) over a closed @JsonSubTypes
-             allowlist (9 ops), never default typing — so these deserialization CVEs are not
-             reachable in our path; we bump anyway to keep the Snyk gate clean.
+        <!-- Jackson is deliberately NOT pinned here. exeris/applyMutation transports the SDK-owned
+             MutationOp / MutationResult shapes, which are Jackson-polymorphic (op/outcome
+             discriminators); LSP4J serializes with Gson, which ignores @JsonTypeInfo, so the server
+             (de)serializes those payloads with the SDK's own Jackson 3 contract. Running the version
+             the SDK was built and tested with is therefore the correctness requirement, and the
+             imported exeris-sdk-bom is what supplies it — jackson-databind on the 3.x line paired
+             with jackson-annotations on the 2.x line, as jackson-bom dictates. A local pin could
+             only drift from that pairing. A security fix that cannot wait for an SDK release is
+             taken as a jackson-bom PATCH release on the SDK's minor line, imported ahead of
+             exeris-sdk-bom (the first import that manages a coordinate wins), so jackson-core and
+             jackson-databind move together and the annotations pairing stays jackson-bom's own.
+             jackson.version below is that override: it is dropped by the SDK bump whose BOM
+             manages the same version or later.
 
-             UPDATE at the 0.11.0 bump: the SDK BOM is now on 3.2.0 as well, so the condition this
-             note set for dropping the pin is met — and the pin stays anyway, because this repo does
-             not import the SDK BOM at all. Dropping it would leave jackson unmanaged rather than
-             managed by the SDK. Importing that BOM is now unblocked and is a separate decision;
-             until someone takes it, this line is what pins jackson.
              gson is LSP4J's own JSON layer; pinned so the JsonElement wire boundary is explicit. -->
-        <jackson.version>3.2.0</jackson.version>
+        <jackson.version>3.2.3</jackson.version>
         <gson.version>2.11.0</gson.version>
-
-        <junit.version>5.11.4</junit.version>
-        <assertj.version>3.27.3</assertj.version>
     </properties>
 
     <dependencyManagement>
         <dependencies>
-            <!-- Exeris SDK -->
+            <!-- Exeris SDK: its modules (annotations, source-model, source-model-io — the
+                 parser/writer/conflict-detector the LSP server consumes) and the third-party
+                 versions it is tested against (Jackson, JavaParser, JUnit, AssertJ). Explicit
+                 entries in this BOM win over the import, so the import is the default and never
+                 overrides a deliberate choice made here. -->
+            <!-- Ahead of exeris-sdk-bom on purpose: see jackson.version. -->
             <dependency>
-                <groupId>eu.exeris</groupId>
-                <artifactId>exeris-sdk-annotations</artifactId>
-                <version>${exeris.sdk.version}</version>
+                <groupId>tools.jackson</groupId>
+                <artifactId>jackson-bom</artifactId>
+                <version>${jackson.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
             </dependency>
             <dependency>
                 <groupId>eu.exeris</groupId>
-                <artifactId>exeris-sdk-source-model</artifactId>
+                <artifactId>exeris-sdk-bom</artifactId>
                 <version>${exeris.sdk.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
             </dependency>
-            <!-- Parser/writer/conflict-detector over @ExerisDomain sources; consumed by the LSP server. -->
+
+            <!-- Exeris Kernel SPI & Community (WebSocket transport ADR-084) -->
             <dependency>
                 <groupId>eu.exeris</groupId>
-                <artifactId>exeris-sdk-source-model-io</artifactId>
-                <version>${exeris.sdk.version}</version>
+                <artifactId>exeris-kernel-spi</artifactId>
+                <version>${exeris.kernel.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>eu.exeris</groupId>
+                <artifactId>exeris-kernel-community</artifactId>
+                <version>${exeris.kernel.version}</version>
             </dependency>
 
             <!-- LSP framework (JSON-RPC, base protocol, stdio launcher) -->
@@ -88,18 +99,13 @@
                 <version>${lsp4j.version}</version>
             </dependency>
 
-            <!-- JSON: gson is LSP4J's wire layer (JsonElement boundary for exeris/applyMutation);
-                 jackson-databind 3 (de)serializes the SDK's polymorphic mutation shapes per the
-                 SDK consumer contract (FAIL_ON_NULL_FOR_PRIMITIVES=false). -->
+            <!-- gson is LSP4J's wire layer (JsonElement boundary for exeris/applyMutation).
+                 jackson-databind, which (de)serializes the SDK's polymorphic mutation shapes, is
+                 managed by the exeris-sdk-bom import above. -->
             <dependency>
                 <groupId>com.google.code.gson</groupId>
                 <artifactId>gson</artifactId>
                 <version>${gson.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>tools.jackson.core</groupId>
-                <artifactId>jackson-databind</artifactId>
-                <version>${jackson.version}</version>
             </dependency>
 
             <!-- Exeris Tooling (build-time). exeris-processor is the annotation processor that
@@ -128,19 +134,7 @@
                 <version>${project.version}</version>
             </dependency>
 
-            <!-- Test deps -->
-            <dependency>
-                <groupId>org.junit.jupiter</groupId>
-                <artifactId>junit-jupiter</artifactId>
-                <version>${junit.version}</version>
-                <scope>test</scope>
-            </dependency>
-            <dependency>
-                <groupId>org.assertj</groupId>
-                <artifactId>assertj-core</artifactId>
-                <version>${assertj.version}</version>
-                <scope>test</scope>
-            </dependency>
+            <!-- Test deps (junit-jupiter, assertj-core) are managed by the exeris-sdk-bom import. -->
         </dependencies>
     </dependencyManagement>
 </project>

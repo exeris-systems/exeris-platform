@@ -105,6 +105,8 @@ class ExerisLanguageServerTest {
                 import eu.exeris.sdk.annotations.ActionParam;
                 import eu.exeris.sdk.annotations.ExerisDomain;
                 import eu.exeris.sdk.annotations.Field;
+                import eu.exeris.sdk.annotation.Relationship;
+                import eu.exeris.sdk.annotation.Relationship.RelationshipType;
 
                 @ExerisDomain(name = "Order", restApi = true, graphqlApi = true)
                 public class Order {
@@ -113,6 +115,9 @@ class ExerisLanguageServerTest {
                     private String code;
 
                     private double total;
+
+                    @Relationship(relationshipType = RelationshipType.ONE_TO_MANY)
+                    private java.util.List<OrderItem> items;
 
                     @Action(httpMethod = "POST")
                     public void submit(@ActionParam(required = true) String reason) {
@@ -146,6 +151,11 @@ class ExerisLanguageServerTest {
                 .satisfies(f -> assertThat(f.required()).isTrue());
         assertThat(description.actions()).extracting("name").contains("submit");
         assertThat(description.artefacts()).contains("rest", "graphql");
+        assertThat(description.relationships()).singleElement().satisfies(r -> {
+            assertThat(r.name()).isEqualTo("items");
+            assertThat(r.targetEntity()).isEqualTo("OrderItem");
+            assertThat(r.type()).isEqualTo("ONE_TO_MANY");
+        });
 
         List<ActionSummary> actions = remote.actions().get(5, TimeUnit.SECONDS);
         assertThat(actions).singleElement().satisfies(a -> {

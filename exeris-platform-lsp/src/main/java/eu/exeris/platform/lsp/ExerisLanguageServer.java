@@ -4,7 +4,9 @@ import com.google.gson.JsonElement;
 import java.net.URI;
 import java.nio.file.Path;
 import java.util.List;
+import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
+import java.util.function.IntConsumer;
 import org.eclipse.lsp4j.ClientCapabilities;
 import org.eclipse.lsp4j.DidChangeWatchedFilesRegistrationOptions;
 import org.eclipse.lsp4j.FileSystemWatcher;
@@ -58,7 +60,14 @@ public final class ExerisLanguageServer
     // whether the client advertised dynamic registration for workspace/didChangeWatchedFiles.
     private boolean clientSupportsFileWatchers;
 
+    private final IntConsumer exitAction;
+
     public ExerisLanguageServer() {
+        this(System::exit);
+    }
+
+    public ExerisLanguageServer(IntConsumer exitAction) {
+        this.exitAction = Objects.requireNonNull(exitAction, "exitAction");
         // Both services share one invalidation hook: a save or an out-of-band disk change drops
         // the cached scan so the next read re-parses from disk.
         this.textDocumentService = new ExerisTextDocumentService(this::invalidateIndex);
@@ -190,7 +199,7 @@ public final class ExerisLanguageServer
     @Override
     public void exit() {
         // Per the LSP spec: exit 0 if shutdown was requested first, otherwise 1.
-        System.exit(shutdownRequested ? 0 : 1);
+        exitAction.accept(shutdownRequested ? 0 : 1);
     }
 
     @Override

@@ -23,12 +23,16 @@ This repository sits at the top of the design-time stack. Versions are in `exeri
 
 ## Orchestration
 
-CI clones each upstream at its release tag and runs `mvn install` in-job. A SNAPSHOT registry is a
-future option, not a near-term commitment.
+The Exeris stack (`eu.exeris:exeris-kernel-*`, `eu.exeris:exeris-sdk-*`, `eu.exeris.tooling:*`)
+resolves from Maven Central at the versions `exeris-platform-bom` pins, and `@exeris/ui-kit` and
+`@exeris/codegen-ts` resolve from npmjs. Building needs no sibling checkout and no credential.
 
-`eu.exeris:*` snapshots, where they are needed, resolve from GitHub Packages
-(`https://maven.pkg.github.com/exeris-systems/*`), with `GITHUB_TOKEN` and `PACKAGES_READ_TOKEN`
-holding a PAT with `read:packages`. The settings file is `.github/maven-settings.xml`.
+Testing an unreleased upstream change means `mvn install` in that repository and overriding the
+pin on the command line (`-Dexeris.sdk.version=…`, `-Dexeris.tooling.version=…`); the pin itself
+moves only to a published version.
+
+Publishing this repository's own artifacts to GitHub Packages is the one step that authenticates:
+`publish.yml` deploys with `.github/maven-settings.xml` and the job's `GITHUB_TOKEN`.
 
 ## Working references in sibling repositories
 

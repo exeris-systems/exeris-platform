@@ -44,9 +44,9 @@ class MetadataCorpusTest {
     void theEmittedFieldsAreTheOnesTheClassDeclares() throws Exception {
         JsonNode fields = readCorpusEntry("/exeris-metadata/Workspace.json").path("fields");
 
-        assertThat(fields).hasSize(3);
+        assertThat(fields).hasSize(4);
         assertThat(fields).extracting(f -> f.path("name").asString())
-                .containsExactlyInAnyOrder("name", "rootPath", "lastOpenedAt");
+                .containsExactlyInAnyOrder("id", "name", "rootPath", "lastOpenedAt");
     }
 
     @Test

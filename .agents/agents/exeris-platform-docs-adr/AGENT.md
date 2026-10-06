@@ -36,7 +36,7 @@ Maintain knowledge integrity between platform implementation and its strategic d
 - Idempotent write-back contract change → new ADR required.
 - Parallel-metamodel-regression escalation (someone proposes reintroducing `EntityDefinition` etc.) → new ADR required to override the deletion recorded in the backend `package-info`; do NOT silently allow.
 - Frontend framework change (Angular/React swap, Tailwind alternative) → new ADR.
-- Sibling-repo orchestration shift (in-job clone vs SNAPSHOT registry) → ROADMAP entry; ADR only if it changes consumer experience.
+- Upstream resolution shift (Maven Central / npmjs vs a sibling install) → ROADMAP entry; ADR only if it changes consumer experience.
 
 ## Non-goals
 - Do not rewrite large documentation areas without code-backed need.

@@ -8,9 +8,12 @@ between Studio, IDE plugins, and on-disk `@ExerisDomain` sources.
 > `exeris-sdk-source-model-io` (ADR-037), ships the read-only `exeris/*` trio
 > plus `exeris/applyMutation` (ADR-042), and now ships as a standalone launcher
 > that runs with no source tree (see [Running the LSP server](#running-the-lsp-server)).
-> `exeris-studio-backend` now models its own workspace state as an `@ExerisDomain` and emits it
-> to the `exeris-metadata` corpus, but exposes no surface over it yet; `exeris-studio-frontend` is
-> still a placeholder scaffolding the target architecture below.
+> The launcher serves the same surface over stdio and over WebSocket (`--websocket`).
+> `exeris-studio-frontend` connects to it over WebSocket and browses a workspace read-only: a tree
+> of its domains and an entity detail view. `exeris-studio-backend` models its own workspace
+> state as an `@ExerisDomain` and emits it to the `exeris-metadata` corpus. The Studio's Workspace
+> screens are generated from that corpus by `@exeris/codegen-ts` (`src/app/generated`). The HTTP
+> surface those screens call is not served yet.
 
 ## Architecture (target)
 
@@ -75,17 +78,22 @@ same reason: the open core must be a fully usable Studio for any single team.
 
 - JDK 25+ (the reactor compiles to `release 25`; CI builds on 25 and 26)
 - Maven 3.9+
-- Node 24+ (`exeris-studio-frontend` — required by `package.json` engines field; Angular 21)
-- Local install of `eu.exeris:exeris-sdk-*` and `eu.exeris.tooling:*` (run
-  `mvn install` in those repos first — until SNAPSHOTs are published, a fresh
-  clone of this repo alone cannot resolve those dependencies).
+- Node 24+ (`exeris-studio-frontend` — required by `package.json` engines field; Angular 22)
+- No credentials: the Exeris stack (kernel, SDK, tooling) resolves from Maven Central at the
+  versions `exeris-platform-bom` pins, and `@exeris/ui-kit` and `@exeris/codegen-ts` resolve
+  from npmjs.
 
 ## Build
 
 ```bash
-mvn clean install                                            # backend + LSP
-cd exeris-studio-frontend && npm install && npm run build    # frontend
+mvn install                                                            # backend + LSP
+cd exeris-studio-frontend && npm ci && npm run build && npm run test   # frontend
 ```
+
+`mvn install` comes first: the frontend's generated screens are emitted from
+`exeris-studio-backend`'s metadata corpus. `npm run codegen` regenerates `src/app/generated/`
+with `@exeris/codegen-ts`. Those files are committed and never edited by hand, and CI fails when
+a regeneration differs from what is committed.
 
 ## Running the LSP server
 
@@ -103,13 +111,31 @@ mvn -pl exeris-platform-lsp exec:java
 java -jar exeris-platform-lsp-<version>-standalone.jar
 ```
 
-It speaks JSON-RPC over stdio, which is what every LSP client ultimately consumes.
+By default it speaks JSON-RPC over stdio, which is what every LSP client ultimately consumes.
 `mvn install` builds the launcher into `exeris-platform-lsp/target/`; released versions
 are attached to the [GitHub release](https://github.com/exeris-systems/exeris-platform/releases)
 and published to GitHub Packages under classifier `standalone`. Fetch it from Packages
-with `-Dtransitive=false` — the POM's `eu.exeris:exeris-sdk-*` dependencies are published
-to no Maven repository, and the launcher does not need them resolved because they are
-inside the jar.
+with `-Dtransitive=false`: everything it runs on is inside the jar.
+
+**WebSocket (Studio).** `--websocket` serves the same JSON-RPC surface over a WebSocket at
+`ws://<host>:<port>/lsp`, one language server per connection, on the kernel's own WebSocket
+server (ADR-084, `preview` at kernel 0.12):
+
+| Option | Meaning |
+|:--|:--|
+| `--websocket` / `--stdio` | Pick the transport; stdio is the default |
+| `--host <addr>` | Interface to bind; default `127.0.0.1` |
+| `--port <n>` | Port to bind; default `5007`, which is where Studio connects by default |
+| `--allowed-origin <origin>` | Browser origin admitted by the handshake; repeatable, and it **replaces** the default `http://localhost:4200` + `http://127.0.0.1:4200` rather than adding to it |
+| `--allow-remote` | Required to bind a non-loopback `--host` |
+
+The default bind is loopback only, and that is deliberate: `exeris/applyMutation` writes to the
+workspace's sources and the endpoint authenticates nobody, so exposing it beyond the machine
+must be an explicit `--allow-remote`. Invalid or inconsistent options exit with status 2.
+
+```bash
+java -jar exeris-platform-lsp-<version>-standalone.jar --websocket
+```
 
 `LauncherIT` runs that jar on every build. A launcher whose output is never executed is
 how the neighbouring `exeris-kernel-diagnostics-cli` shipped a 0.11.0 that initialised

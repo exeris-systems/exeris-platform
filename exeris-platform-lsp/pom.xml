@@ -45,6 +45,26 @@
             <groupId>tools.jackson.core</groupId>
             <artifactId>jackson-databind</artifactId>
         </dependency>
+        <!-- WebSocket transport ADR-084: SPI for compile, Community provider for standalone runtime & tests -->
+        <dependency>
+            <groupId>eu.exeris</groupId>
+            <artifactId>exeris-kernel-spi</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>eu.exeris</groupId>
+            <artifactId>exeris-kernel-community</artifactId>
+            <scope>runtime</scope>
+            <!-- The launcher takes one provider from the Community bundle: WebSocketProvider. The
+                 graph provider's Neo4j driver (with netty and reactor-core under it) serves no
+                 code path here, so it stays out of the runtime classpath and the shaded jar;
+                 ServiceLoader instantiates only the providers of the interface it is asked for. -->
+            <exclusions>
+                <exclusion>
+                    <groupId>org.neo4j.driver</groupId>
+                    <artifactId>neo4j-java-driver</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>
 
         <dependency>
             <groupId>org.junit.jupiter</groupId>
@@ -116,12 +136,10 @@
                 classpath hazard rather than a convenience. The thin jar stays the main
                 artifact; `-standalone` is the thing you run.
 
-                CAVEAT for whoever resolves this: eu.exeris:exeris-sdk-* is published to
-                no Maven repository at all — every consumer builds it from source (see
-                the sibling-checkout steps in .github/workflows/build.yml) — so the main
-                POM's dependencies are NOT resolvable off-repo. Fetch the launcher with
-                `-Dtransitive=false`. That is exactly what shading makes safe: the SDK
-                classes are inside this jar, so nothing needs to resolve them at runtime.
+                Fetch the launcher with `-Dtransitive=false`. Everything it runs on —
+                the SDK, the kernel's WebSocket provider, LSP4J, Jackson — is inside the
+                jar, so resolving the main POM's dependency tree beside it only downloads
+                a second copy of the same classes.
             -->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
@@ -147,16 +165,25 @@
                                              this the JVM ignores META-INF/versions/ entirely and
                                              silently runs the Java 8 fallbacks. -->
                                         <Multi-Release>true</Multi-Release>
+                                        <!-- exeris-kernel-community calls restricted FFM methods
+                                             (java.lang.foreign.Linker), which warn (and, on a JDK
+                                             that enforces it, refuse) unless native access is
+                                             granted. For an executable jar the manifest is the
+                                             grant, so `java -jar` needs no command-line flag. It
+                                             covers code on the class path only, which is where this
+                                             jar runs. The sun.misc.Unsafe notice jctools emits is a
+                                             separate deprecation and is not suppressed here. -->
+                                        <Enable-Native-Access>ALL-UNNAMED</Enable-Native-Access>
                                     </manifestEntries>
                                 </transformer>
-                                <!-- Measured, not copied: the SDK jars carry no META-INF/services
-                                     at all (the LSP reaches the source model by direct call, not
-                                     ServiceLoader). What does carry service files is Jackson 3 —
-                                     tools.jackson.databind.ObjectMapper and
-                                     tools.jackson.core.TokenStreamFactory. They name different
-                                     interfaces today, so nothing collides yet; the transformer is
-                                     here so that a second provider for either one merges instead
-                                     of one file overwriting the other. -->
+                                <!-- Load-bearing: exeris-kernel-community registers its providers
+                                     (WebSocketProvider among them) through META-INF/services, and
+                                     the WebSocket transport finds its provider by ServiceLoader.
+                                     Jackson ships service files too.
+                                     Without this transformer the first jar's file for an interface
+                                     wins and every later provider for it silently disappears; with
+                                     it, files naming the same interface merge. The SDK jars carry
+                                     none — the LSP reaches the source model by direct call. -->
                                 <transformer implementation="org.apache.maven.plugins.shade.resource.ServicesResourceTransformer"/>
                             </transformers>
                             <filters>
@@ -168,7 +195,7 @@
                                         <exclude>META-INF/*.SF</exclude>
                                         <exclude>META-INF/*.DSA</exclude>
                                         <exclude>META-INF/*.RSA</exclude>
-                                        <!-- Five dependencies ship a module-info; flattened into
+                                        <!-- Many dependencies ship a module-info; flattened into
                                              one jar they collide, and this artifact is run on the
                                              classpath, where they carry no meaning anyway. -->
                                         <exclude>module-info.class</exclude>

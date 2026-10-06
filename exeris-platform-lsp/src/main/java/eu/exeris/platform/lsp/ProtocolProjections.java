@@ -6,6 +6,7 @@ import eu.exeris.platform.lsp.ExerisProtocolExtensions.DomainDescription;
 import eu.exeris.platform.lsp.ExerisProtocolExtensions.DomainSummary;
 import eu.exeris.platform.lsp.ExerisProtocolExtensions.FieldDescription;
 import eu.exeris.platform.lsp.ExerisProtocolExtensions.ParamSummary;
+import eu.exeris.platform.lsp.ExerisProtocolExtensions.RelationshipDescription;
 import eu.exeris.platform.lsp.WorkspaceIndex.IndexedDomain;
 import eu.exeris.sdk.sourcemodel.ast.ActionMetadata;
 import eu.exeris.sdk.sourcemodel.ast.DomainMetadata;
@@ -33,7 +34,7 @@ final class ProtocolProjections {
                 .map(a -> new ActionDescription(a.name(), a.httpMethod(), a.resultType(), params(a)))
                 .toList();
         return new DomainDescription(d.fullyQualifiedName(), d.entityName(), d.packageName(),
-                indexed.sourcePath().toUri().toString(), fields, actions, artefacts(d));
+                indexed.sourcePath().toUri().toString(), fields, actions, artefacts(d), relationships(d));
     }
 
     static List<ActionSummary> toActionSummaries(IndexedDomain indexed) {
@@ -75,5 +76,20 @@ final class ProtocolProjections {
             artefacts.add("internalClient");
         }
         return artefacts;
+    }
+
+    /**
+     * A null facet stays null (omitted on the wire: "not carried"); it is never flattened into an
+     * empty list, which would mean "declares none". Null is the wire value here, hence S1168.
+     */
+    @SuppressWarnings("java:S1168")
+    private static List<RelationshipDescription> relationships(DomainMetadata d) {
+        if (d.relationships() == null) {
+            return null;
+        }
+        return d.relationships().stream()
+                .map(r -> new RelationshipDescription(
+                        r.name(), r.targetEntity(), SdkJson.enumValue(r.type())))
+                .toList();
     }
 }
