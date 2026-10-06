@@ -3,6 +3,7 @@ package eu.exeris.studio.workspace;
 import eu.exeris.sdk.annotation.ExerisDomain;
 import eu.exeris.sdk.annotation.Field;
 import java.time.Instant;
+import java.util.UUID;
 
 /**
  * A source tree that Studio has open: where it is on disk, what to call it, and when it was last
@@ -25,6 +26,14 @@ import java.time.Instant;
         description = "A source tree open in Studio: its location on disk, its name, and when it was last worked on.")
 public class Workspace {
 
+    /**
+     * The workspace's identity. Named {@code id} and typed {@link UUID} because that is the SDK's
+     * primary-key convention: {@code @ExerisDomain.primaryKeyField} defaults to {@code id}, and the
+     * generated schema, repository and by-id routes key every row by it. It identifies the record,
+     * not anything inside the tree it points at.
+     */
+    private UUID id;
+
     @Field(label = "Name", required = true, inList = true, searchable = true, order = 10)
     private String name;
 
@@ -34,6 +43,14 @@ public class Workspace {
 
     @Field(label = "Last opened", sortable = true, inList = true, order = 30)
     private Instant lastOpenedAt;
+
+    public UUID getId() {
+        return id;
+    }
+
+    public void setId(UUID id) {
+        this.id = id;
+    }
 
     public String getName() {
         return name;

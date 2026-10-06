@@ -10,9 +10,9 @@
       the org that owns the registry, not the acting user. The id matches
       <distributionManagement> in the root POM.
 
-      This file is for PUBLISHING only. Reading is a separate concern this repo does not have:
-      it depends on no published eu.exeris artifact — CI clones exeris-sdk and exeris-tooling
-      and installs them from source (see build.yml) — so no <repositories> block belongs here.
+      This file is for PUBLISHING only. Reading needs no server entry: every eu.exeris dependency
+      resolves from Maven Central at the exeris-platform-bom pins, so no <repositories> block and
+      no read credential belong here.
     -->
     <server>
       <id>github-exeris-platform</id>

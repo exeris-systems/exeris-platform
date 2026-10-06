@@ -11,20 +11,21 @@ The validation gate that `exeris-platform-routing-planner` names for `CROSS_BUIL
 ## When to Use
 - Any change that edits files under **both** a Java module and `exeris-studio-frontend/`.
 - Any change to an `exeris/*` method or its wire shape that the frontend (WebSocket transport) consumes.
-- Any bump of a cross-repo dependency (`eu.exeris:exeris-sdk-*`, `eu.exeris.tooling:*`) — the local `mvn install` of those upstreams must exist first.
+- Any bump of a cross-repo dependency (`eu.exeris:exeris-kernel-*`, `eu.exeris:exeris-sdk-*`, `eu.exeris.tooling:*`, or the `@exeris/codegen-ts` devDependency, which must match `exeris.tooling.version`).
 - Before declaring a multi-module task "done".
 
 ## Evidence Gathering (do this first)
 - `git diff --name-only origin/main...HEAD` — split touched paths into Java vs `exeris-studio-frontend/`. If both buckets are non-empty, this is cross-build.
 - Identify the shared surface: which `exeris/*` method / wire shape does the frontend call, and did the Java side change it?
-- Check that upstream deps resolve: `eu.exeris:*` come from GitHub Packages, not Maven Central — `PACKAGES_READ_TOKEN` / `GITHUB_TOKEN` must be set (see `.agents/references/cross-repo-dependencies.md`), or a local `mvn install` of the SDK/tooling must already exist.
+- Check that upstream deps resolve: `eu.exeris:*` and `eu.exeris.tooling:*` come from Maven Central at the BOM pins, with no credential (`exeris-platform-sdk-dep-sync`).
 
 ## Validation Procedure
-1. **Backend + LSP reactor** — `mvn -q clean install` (or `mvn -pl exeris-platform-lsp -am test` for an LSP-scoped change). Must be green.
-2. **Frontend** — `cd exeris-studio-frontend && npm install && npm run build`, then `npm run test`. Must be green.
-3. **Wire-contract parity** — if an `exeris/*` method or its shape changed, confirm the frontend client and the LSP server agree on method name and payload. Disagreement is a failed gate even if both builds compile. Hand off to `exeris-platform-lsp-protocol-review` for the wire details.
-4. **Order sanity** — the frontend depends on the wire surface, not vice versa. If the Java side widened/renamed a method, the frontend change must land in the same logical unit, not a follow-up.
-5. **Decision and report** — `PASS`, `PASS_WITH_FOLLOWUP`, or `FAIL`.
+1. **Backend + LSP reactor** — `mvn -q install` (or `mvn -pl exeris-platform-lsp -am test` for an LSP-scoped change). Must be green.
+2. **Frontend** — `cd exeris-studio-frontend && npm ci && npm run build`, then `npm run test`. Must be green.
+3. **Generated-code drift** — after the reactor build, `npm run codegen` and confirm `git status --porcelain -- src/app/generated` is empty. A difference means the committed generated tree is stale, or was edited by hand.
+4. **Wire-contract parity** — if an `exeris/*` method or its shape changed, confirm the frontend client and the LSP server agree on method name and payload. Disagreement is a failed gate even if both builds compile. Hand off to `exeris-platform-lsp-protocol-review` for the wire details.
+5. **Order sanity** — the frontend depends on the wire surface, not vice versa. If the Java side widened/renamed a method, the frontend change must land in the same logical unit, not a follow-up.
+6. **Decision and report** — `PASS`, `PASS_WITH_FOLLOWUP`, or `FAIL`.
 
 ## Decision Logic
 - **PASS**: both builds green; wire contract matches on both sides (or no shared surface changed).

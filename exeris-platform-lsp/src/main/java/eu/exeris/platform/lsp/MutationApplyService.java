@@ -11,9 +11,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Optional;
-import tools.jackson.databind.DeserializationFeature;
 import tools.jackson.databind.ObjectMapper;
-import tools.jackson.databind.json.JsonMapper;
 
 /**
  * Backs {@code exeris/applyMutation}: applies one {@link MutationOp} to an on-disk
@@ -35,9 +33,7 @@ import tools.jackson.databind.json.JsonMapper;
 final class MutationApplyService {
 
     /** SDK consumer contract: Jackson 3 with null→primitive coercion tolerated (AST package-info). */
-    private static final ObjectMapper MAPPER = JsonMapper.builder()
-            .configure(DeserializationFeature.FAIL_ON_NULL_FOR_PRIMITIVES, false)
-            .build();
+    private static final ObjectMapper MAPPER = SdkJson.MAPPER;
 
     // Shared across requests. Safe because LSP4J dispatches messages on a single reader thread
     // (sequential), and MAPPER is a thread-safe Jackson mapper; the applier holds no per-call

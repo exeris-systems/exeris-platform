@@ -14,9 +14,9 @@ name: publish
 # last. Only the cut is a release, so only the cut publishes.
 #
 # MAVEN CENTRAL is not wired, and this is where it will go when it is: same trigger, same tag, one
-# additional `-P release` deploy step after the Packages one. It stays absent until the rest of the
-# stack is on Central (exeris-kernel 0.12.0, exeris-sdk 0.12.0, exeris-tooling 0.9.0) and this repo
-# reaches 0.6.0 at the earliest — see the <distributionManagement> comment in the root POM. A
+# additional `-P release` deploy step after the Packages one. The rest of the stack is already on
+# Central and this build resolves it from there; what keeps the step absent is this repo's own
+# release gate, 0.6.0 at the earliest — see the <distributionManagement> comment in the root POM. A
 # half-built `release` profile is one that uploads unsigned artifacts to an immutable repository, so
 # there is no placeholder step here to accidentally enable.
 
@@ -49,6 +49,18 @@ jobs:
           # Full history: the ancestry check below needs origin/main, and a shallow clone has no
           # remote branches to compare a tag against.
           fetch-depth: 0
+
+      # 25, the floor this repo compiles to. Building the artifact on the oldest JDK it claims to
+      # support is the point: `release 25` guarantees the bytecode, and only running the launcher IT
+      # under a 25 runtime shows the jar actually starts there. Set up before the tag check, which
+      # already runs Maven. No sibling checkout follows: the Exeris stack resolves from Maven
+      # Central at the versions exeris-platform-bom pins, exactly as in build.yml.
+      - name: Set up JDK 25
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '25'
+          cache: maven
 
       - name: Validate the tag
         if: startsWith(github.ref, 'refs/tags/')
@@ -90,46 +102,6 @@ jobs:
 
           echo "releasing $version from $TAGGED_SHA"
 
-      # The sibling checkouts and their pinned refs are the same ones build.yml uses, and for the
-      # same reason: no eu.exeris:exeris-sdk-* or eu.exeris.tooling:* artifact is published to any
-      # Maven repository, so every build installs them from source. The refs MUST stay in step with
-      # exeris.sdk.version / exeris.tooling.version in exeris-platform-bom — a bump that updates one
-      # and not the other silently builds against the wrong upstream.
-      - name: Checkout exeris-sdk (v0.11.0 — matches exeris.sdk.version in the BOM)
-        uses: actions/checkout@v4
-        with:
-          repository: exeris-systems/exeris-sdk
-          ref: v0.11.0
-          path: exeris-sdk
-
-      - name: Checkout exeris-tooling (v0.8.0 — matches exeris.tooling.version in the BOM)
-        uses: actions/checkout@v4
-        with:
-          repository: exeris-systems/exeris-tooling
-          ref: v0.8.0
-          path: exeris-tooling
-
-      # 25, the floor this repo compiles to. Building the artifact on the oldest JDK it claims to
-      # support is the point: `release 25` guarantees the bytecode, and only running the launcher IT
-      # under a 25 runtime shows the jar actually starts there.
-      - name: Set up JDK 25
-        uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: '25'
-          cache: maven
-
-      # japicmp.skip: the SDK binds a semver gate to `verify` from v0.10.0 on, and it resolves its
-      # baseline from a repository no eu.exeris artifact is published to. Not our gate to run — see
-      # the longer note in build.yml.
-      - name: Install exeris-sdk to local Maven repo
-        working-directory: exeris-sdk
-        run: mvn -B -ntp -DskipTests -Djapicmp.skip=true install
-
-      - name: Install exeris-tooling to local Maven repo (kernel-free reactor)
-        working-directory: exeris-tooling
-        run: mvn -B -ntp -DskipTests install -pl exeris-tooling-bom,exeris-processor,exeris-codegen-maven-plugin -am
-
       - name: Drop the -SNAPSHOT suffix
         if: startsWith(github.ref, 'refs/tags/')
         working-directory: exeris-platform
@@ -140,12 +112,12 @@ jobs:
       # ONE Maven invocation, and that is the point: `deploy` runs the whole lifecycle, so the jar
       # LauncherIT started as a separate `java -jar` process is the exact jar that gets uploaded.
       # Gating in one run and publishing in a second re-runs shade over a dirty target/, and a
-      # re-shade is not byte-identical (exeris-kernel measured this) — the artifact you verified
-      # would not be the artifact you shipped.
+      # re-shade is not byte-identical — the artifact you verified would not be the artifact you
+      # shipped.
       #
-      # The gate itself is LauncherIT. exeris-kernel-diagnostics-cli 0.11.0 published a shaded jar
-      # that initialised and then died on its first call, because its build never executed the
-      # artifact it shipped. This one does, and a red IT stops the release.
+      # The gate itself is LauncherIT: it executes the shipped jar and drives a real LSP session
+      # through it, because a shaded jar that builds is not yet a jar that runs. A red IT stops
+      # the release.
       - name: Build, gate, and deploy to GitHub Packages
         if: startsWith(github.ref, 'refs/tags/')
         working-directory: exeris-platform
@@ -198,7 +170,7 @@ jobs:
             --title "$TAG" \
             --notes "Standalone LSP launcher. Run it with \`java -jar exeris-platform-lsp-${VERSION}-standalone.jar\` — it speaks JSON-RPC over stdio and needs no source tree, no Maven and JDK 25 or newer.
 
-          Also on GitHub Packages as \`eu.exeris.platform:exeris-platform-lsp:${VERSION}\` (classifier \`standalone\`). Fetch it with \`-Dtransitive=false\`: the POM's \`eu.exeris:exeris-sdk-*\` dependencies are published nowhere, and the launcher does not need them — they are inside the jar." \
+          Also on GitHub Packages as \`eu.exeris.platform:exeris-platform-lsp:${VERSION}\` (classifier \`standalone\`). Fetch it with \`-Dtransitive=false\`: everything the launcher runs on is inside the jar, so resolving the POM's dependency tree beside it only downloads a second copy of the same classes." \
             "$JAR" \
             "${JAR}.sha256"
 

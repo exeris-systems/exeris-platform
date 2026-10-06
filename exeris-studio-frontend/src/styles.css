@@ -1,6 +1,8 @@
 /* Exeris Studio - Global Styles */
 /* Tailwind CSS v4 */
 @import "tailwindcss";
+@import "@exeris/ui-kit/theme";
+@import "@exeris/ui-kit/styles";
 
 /* Custom base styles */
 @layer base {

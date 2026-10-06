@@ -14,6 +14,6 @@ surface describes*.
   `@exeris/codegen-ts` from the `exeris-metadata` corpus.
 - **A generated screen never becomes the source of truth for a user domain.** That is a parallel
   metamodel in frontend clothing.
-- **Generated and hand-written screens sit on the same `@exeris-systems/ui-kit`**
+- **Generated and hand-written screens sit on the same `@exeris/ui-kit`**
   ([`frontend-stack.md`](frontend-stack.md)), or the two halves drift apart visually and
   behaviourally.

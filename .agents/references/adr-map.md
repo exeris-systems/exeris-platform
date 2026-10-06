@@ -16,14 +16,19 @@ the ADR wherever the two differ.
 | ADR-085 Documentation and repo hygiene | `AGENTS.md`, `.agents/`, frontmatter, commit and pull-request conventions. |
 | ADR-087 Review publication | The organisation's review and its verdict, run by `guardrails.yml`. |
 
-## The next amendment
+## `relationships` on `exeris/domainDescribe`
 
-Widening `exeris/domainDescribe` past `fields` / `actions` / `artefacts` — 0.4.0's entity detail
-view needs `relationships` — is an amendment to ADR-025. The "none versus not carried" distinction
-it must preserve is already the canonical model's: `DomainMetadata` is `@JsonInclude(NON_NULL)`, so
-null is omitted and `[]` means none. The job is to avoid flattening that convention, not to invent
-one — `projections` and `eventHandlers` are reserved upstream and arrive unpopulated. The full
-argument is at `domainDescribe` in `ExerisProtocolExtensions.java`.
+`exeris/domainDescribe` carries an optional `relationships[]` of `{ name, targetEntity, type? }`,
+which is the SDK's `RelationshipMetadata` under its own names. This widens ADR-025's pinned read
+trio, so it is an ADR-025 amendment owned by `exeris-ai-bridge`; its status is tracked in
+[`ADR-025.link.md`](../../docs/adr/ADR-025.link.md).
+
+Absent and `[]` stay distinct on the wire: a facet the pipeline does not carry is a null
+component, LSP4J's Gson (built without `serializeNulls`) omits it, and a carried facet with no
+entries is `[]`. `ProtocolProjectionsTest` pins this through LSP4J's own `MessageJsonHandler`, so a
+projection must propagate null rather than flatten it to an empty list. `projections` and
+`eventHandlers` are reserved upstream but never populated by the pipeline, so they are not
+projected.
 
 ## Precedence when documents disagree
 

@@ -1,0 +1,9 @@
+{
+  "inputPath": "../exeris-studio-backend/target/classes/exeris-metadata",
+  "outputPath": "target/exeris-codegen",
+  "appName": "Exeris Studio",
+  "framework": "angular",
+  "styling": "tailwind",
+  "backend": "KERNEL",
+  "overwrite": true
+}

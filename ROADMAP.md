@@ -4,7 +4,7 @@ type: roadmap
 visibility: public
 owning-repo: exeris-platform
 status: active
-last-verified: 2026-09-02
+last-verified: 2026-10-06
 ---
 
 # Exeris Platform — Roadmap to 1.0.0 GA
@@ -32,9 +32,9 @@ This file tracks scope per milestone. Items marked `[ ]` are open; `[x]` shipped
 
 > Goal: green CI from a fresh clone, LSP server speaks the LSP base protocol.
 
-- [x] **CI** — `.github/workflows/build.yml` (clones SDK + tooling, installs both, then `mvn install` + `npm run build` in parallel jobs)
+- [x] **CI** — `.github/workflows/build.yml` (`mvn install` + the frontend build in parallel jobs, every dependency resolved from public registries)
 - [x] **`exeris-platform-lsp` skeleton** — LSP4J server, JSON-RPC over stdio, `initialize`/`shutdown` handlers (Exeris-specific methods followed in 0.3.0)
-- [x] **Pre-publish POM metadata** — root POM declares `<url>`, `<organization>`, `<licenses>`, `<developers>`, `<scm>`, `<issueManagement>`. Required by Maven Central, and kept for it. `<distributionManagement>` named the Central Portal when this box was ticked; it now names GitHub Packages, because Central is not reachable for these coordinates before 1.0.0 and `mvn deploy` was aimed at a repository that would have rejected it
+- [x] **Pre-publish POM metadata** — root POM declares `<url>`, `<organization>`, `<licenses>`, `<developers>`, `<scm>`, `<issueManagement>`. Required by Maven Central, and kept for it. `<distributionManagement>` named the Central Portal when this box was ticked; it now names GitHub Packages, because this repo's own Central release gate (see 1.0.0) is not met and `mvn deploy` was aimed at a repository that would have rejected it
 - [x] **Standalone LSP launcher** — `exeris-platform-lsp` attaches a shaded `-standalone` jar
       (`Main-Class: eu.exeris.platform.lsp.LspMain`) that runs as `java -jar` with no source tree
       and no Maven. `LauncherIT` starts that jar in a separate process on every build and drives a
@@ -48,7 +48,7 @@ This file tracks scope per milestone. Items marked `[ ]` are open; `[x]` shipped
 - [x] **JDK floor at 25** — the reactor compiles to `release 25`, matching `exeris-kernel`,
       `exeris-sdk` v0.11.0 and `exeris-tooling` v0.8.0, so a consumer running the launcher beside
       `exeris-kernel-diagnostics-cli` has one JDK requirement rather than two. CI builds 25 and 26
-- [ ] **Sibling-repo orchestration** — documented or solved (currently CI does in-job clone+install per repo; longer-term consider SNAPSHOT registry)
+- [x] **Sibling-repo orchestration** — solved: the kernel, SDK and tooling resolve from Maven Central at the versions `exeris-platform-bom` pins, so CI clones and installs no sibling repo
 
 ## 0.3.0 — LSP custom Exeris methods
 
@@ -76,15 +76,24 @@ This file tracks scope per milestone. Items marked `[ ]` are open; `[x]` shipped
 
 > Goal: Studio shows entities and lets users do read-only inspection.
 
-- [ ] WebSocket transport (Studio frontend) alongside stdio transport (IDE plugins) — moved here
+- [x] WebSocket transport (Studio frontend) alongside stdio transport (IDE plugins) — moved here
       from 0.3.0: 0.3.0's goal is the method surface, and the transport exists to serve the very
       frontend this milestone wires up. Same JSON-RPC surface on both transports, never a fork
-- [ ] Workspace tree view (entities, capabilities, sagas)
-- [ ] Entity detail view (fields, actions, relationships) — read-only
-- [ ] Tailwind-based component library on the SDK's UI kit — npm package `@exeris-systems/ui-kit`
+- [x] Workspace tree view — the workspace's domains grouped by package, from `exeris/domains`.
+      Capabilities and sagas are not in the tree: no `exeris/*` method returns them (see the
+      `exeris/listCapabilities` note under 0.3.0), and the tree shows only what the wire carries
+- [x] Entity detail view (fields, actions, relationships) — read-only. Relationships come from an
+      optional `relationships[]` on `exeris/domainDescribe` (`{ name, targetEntity, type? }`); a
+      target links to its domain only when it names exactly one domain in `exeris/domains`.
+      The component is additive to ADR-025's pinned read trio, and the ADR-025 amendment that
+      ratifies it for `exeris-ai-bridge` is pending (see `docs/adr/ADR-025.link.md`)
+- [x] Tailwind-based component library on the SDK's UI kit — npm package `@exeris/ui-kit`
       (the `exeris-sdk-ui-kit` directory in `exeris-sdk`), wired through its CSS `@theme` entry
       rather than a JS preset, which Tailwind v4 removed
-- [ ] Routing for `/workspace/:path/entity/:name`
+- [x] Routing for `/workspace/:path/entity/:name`
+- [x] Studio on Angular 22, the scaffold `@exeris/codegen-ts` emits. Screens over the platform's own
+      `Workspace` domain are generated from `exeris-studio-backend`'s metadata corpus and committed
+      under `src/app/generated`; CI regenerates them and fails on drift
 
 ## 0.5.0 — Studio editing
 
@@ -136,11 +145,11 @@ This file tracks scope per milestone. Items marked `[ ]` are open; `[x]` shipped
 - [ ] LSP custom-method API frozen (`exeris/*` methods are semver-stable)
 - [ ] Studio UX polish — performance, accessibility, keyboard navigation
 - [ ] `MIGRATION-0.x-to-1.0.md` for plugin authors
-- [ ] Maven Central release (studio-backend + platform-lsp) — **0.6.0 at the earliest, and gated
-      upstream**: `exeris-kernel` 0.12.0 (in development), `exeris-sdk` 0.12.0 and `exeris-tooling`
-      0.9.0 have to be on Central before these coordinates can be, or a consumer resolves a
-      published artifact whose dependencies are published nowhere. Tag-triggered when it lands, and
-      disabled until then. It rides the same tag trigger as the Packages deploy — one cut, both
+- [ ] Maven Central release (studio-backend + platform-lsp) — **0.6.0 at the earliest**. The
+      upstream half of the gate is met: `exeris-kernel`, `exeris-sdk` and `exeris-tooling` are on
+      Central and this build resolves them from there. What remains is this repo's own: signing,
+      sources/javadoc jars and the `-P release` profile copied from `exeris-kernel`. Tag-triggered
+      when it lands, and disabled until then. It rides the same tag trigger as the Packages deploy — one cut, both
       registries. GitHub Packages carries releases in the meantime (0.2.0)
 - [ ] npm registry release for `@exeris/studio-frontend` (and Studio Docker image)
 
