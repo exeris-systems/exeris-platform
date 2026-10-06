@@ -54,6 +54,16 @@
             <groupId>eu.exeris</groupId>
             <artifactId>exeris-kernel-community</artifactId>
             <scope>runtime</scope>
+            <!-- The launcher takes one provider from the Community bundle: WebSocketProvider. The
+                 graph provider's Neo4j driver (with netty and reactor-core under it) serves no
+                 code path here, so it stays out of the runtime classpath and the shaded jar;
+                 ServiceLoader instantiates only the providers of the interface it is asked for. -->
+            <exclusions>
+                <exclusion>
+                    <groupId>org.neo4j.driver</groupId>
+                    <artifactId>neo4j-java-driver</artifactId>
+                </exclusion>
+            </exclusions>
         </dependency>
 
         <dependency>
@@ -169,7 +179,7 @@
                                 <!-- Load-bearing: exeris-kernel-community registers its providers
                                      (WebSocketProvider among them) through META-INF/services, and
                                      the WebSocket transport finds its provider by ServiceLoader.
-                                     Jackson, netty and the neo4j driver ship service files too.
+                                     Jackson ships service files too.
                                      Without this transformer the first jar's file for an interface
                                      wins and every later provider for it silently disappears; with
                                      it, files naming the same interface merge. The SDK jars carry
