@@ -85,8 +85,7 @@ This file tracks scope per milestone. Items marked `[ ]` are open; `[x]` shipped
 - [x] Entity detail view (fields, actions, relationships) — read-only. Relationships come from an
       optional `relationships[]` on `exeris/domainDescribe` (`{ name, targetEntity, type? }`); a
       target links to its domain only when it names exactly one domain in `exeris/domains`.
-      The component is additive to ADR-025's pinned read trio, and the ADR-025 amendment that
-      ratifies it for `exeris-ai-bridge` is pending (see `docs/adr/ADR-025.link.md`)
+      The component is pinned by ADR-025's 2026-10-06 amendment (see `docs/adr/ADR-025.link.md`)
 - [x] Tailwind-based component library on the SDK's UI kit — npm package `@exeris/ui-kit`
       (the `exeris-sdk-ui-kit` directory in `exeris-sdk`), wired through its CSS `@theme` entry
       rather than a JS preset, which Tailwind v4 removed
