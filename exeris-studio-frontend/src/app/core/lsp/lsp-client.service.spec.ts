@@ -96,6 +96,40 @@ describe('LspClientService', () => {
     expect(result).toEqual({ capabilities: {} });
   });
 
+  it('ignores events from a socket it has replaced', async () => {
+    service.connect(TEST_URL);
+    const first = MockWebSocket.instances[0];
+    // A browser delivers close asynchronously, after the replacement socket exists.
+    first.close = () => {
+      first.readyState = MockWebSocket.CLOSED;
+    };
+    await new Promise((r) => setTimeout(r, 10));
+
+    service.connect('ws://other.test:2/lsp');
+    const second = MockWebSocket.instances[1];
+    await new Promise((r) => setTimeout(r, 10));
+
+    let settled: 'resolved' | 'rejected' | null = null;
+    service.request('exeris/domains', {}).subscribe({
+      next: () => (settled = 'resolved'),
+      error: () => (settled = 'rejected'),
+    });
+    const sent = JSON.parse(second.sentMessages[0]);
+
+    first.onclose?.();
+    first.simulateServerResponse({ jsonrpc: '2.0', id: sent.id, result: ['stale'] });
+    await new Promise((r) => setTimeout(r, 10));
+
+    expect(settled).toBeNull();
+    expect(MockWebSocket.instances.length).toBe(2);
+    let state: string | undefined;
+    service.connectionState$.subscribe((s) => (state = s)).unsubscribe();
+    expect(state).toBe('connected');
+
+    second.simulateServerResponse({ jsonrpc: '2.0', id: sent.id, result: [] });
+    expect(settled).toBe('resolved');
+  });
+
   it('should dispatch exeris/domains and return domain list', async () => {
     service.connect(TEST_URL);
     const mockWs = MockWebSocket.instances[0];

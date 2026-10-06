@@ -59,9 +59,15 @@ export class LspClientService {
     this.setConnectionState('connecting');
 
     try {
-      this.socket = new WebSocket(url);
+      const socket = new WebSocket(url);
+      this.socket = socket;
+      // A replaced socket still delivers its events, and a browser fires close asynchronously,
+      // after the replacement exists: only the current socket may change state, settle requests
+      // or schedule a reconnect.
+      const isCurrent = () => this.socket === socket;
 
-      this.socket.onopen = () => {
+      socket.onopen = () => {
+        if (!isCurrent()) return;
         this.ngZone.run(() => {
           this.setConnectionState('connected');
           if (this.reconnectTimer) {
@@ -77,20 +83,23 @@ export class LspClientService {
         });
       };
 
-      this.socket.onmessage = (event: MessageEvent<string>) => {
+      socket.onmessage = (event: MessageEvent<string>) => {
+        if (!isCurrent()) return;
         this.ngZone.run(() => {
           this.handleIncomingMessage(event.data);
         });
       };
 
-      this.socket.onerror = (err) => {
+      socket.onerror = (err) => {
+        if (!isCurrent()) return;
         this.ngZone.run(() => {
           console.warn('LSP WebSocket error:', err);
           this.setConnectionState('error');
         });
       };
 
-      this.socket.onclose = () => {
+      socket.onclose = () => {
+        if (!isCurrent()) return;
         this.ngZone.run(() => {
           this.setConnectionState('disconnected');
           this.rejectAllPending('LSP WebSocket closed');
