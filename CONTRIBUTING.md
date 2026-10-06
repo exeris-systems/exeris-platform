@@ -15,22 +15,26 @@ server and the studio backend.
 ## Build and test
 
 ```bash
-mvn clean install                                             # backend + LSP, incl. LauncherIT
+mvn install                                                   # backend + LSP, incl. LauncherIT
 mvn -pl exeris-platform-lsp -am test                          # unit tests only (no LauncherIT)
 mvn -pl exeris-platform-lsp verify                            # + packages and runs the launcher
-cd exeris-studio-frontend && npm install && npm run build     # Angular frontend (separate npm build)
+cd exeris-studio-frontend && npm ci && npm run build          # Angular frontend (separate npm build)
 cd exeris-studio-frontend && npm run test                     # Angular unit tests
+cd exeris-studio-frontend && npm run codegen                  # regenerate src/app/generated
 ```
 
 **JDK 25 is the baseline** (`maven.compiler.release` in the root POM); Node 24+ for the frontend.
 
-The reactor depends on `exeris-sdk` and `exeris-tooling` at the versions pinned in
-`exeris-platform-bom`. Install both locally at those release tags before the first build — CI does
-the same in-job.
+The reactor depends on `exeris-kernel`, `exeris-sdk` and `exeris-tooling` at the versions pinned in
+`exeris-platform-bom`; all three resolve from Maven Central with no credential, and the frontend's
+packages resolve from npmjs. A fresh clone builds on its own.
+
+`src/app/generated` in the frontend is `@exeris/codegen-ts` output, committed and never edited by
+hand: change the `@ExerisDomain` source or the generator configuration and run `npm run codegen`.
+CI rebuilds the corpus, regenerates and fails on any difference.
 
 `LauncherIT` runs the shaded `-standalone` jar as a separate process, so it needs `verify`; a plain
-`mvn test` does not exercise it. Run `mvn clean` before believing a local `applyMutation` failure
-that CI does not reproduce: a test class compiled against an older SDK keeps an inlined constant.
+`mvn test` does not exercise it.
 
 ## Agent files
 

@@ -263,7 +263,7 @@ import {
           </div>
         </div>
 
-        <!-- Section: Relationships (ADR-025 Amendment) -->
+        <!-- Section: Relationships (optional exeris/domainDescribe facet, ADR-025) -->
         <div class="space-y-3">
           <h2 class="text-lg font-semibold text-gray-900 dark:text-white flex items-center gap-2">
             Relationships

@@ -50,9 +50,8 @@ public interface ExerisProtocolExtensions {
      * <p>This method's response shape is pinned for {@code exeris-ai-bridge} by ADR-025, and every
      * change to it is an amendment to that ADR. A component renamed or removed breaks the bridge's
      * shape validator, so that amendment and the validator change land first. A component added as
-     * optional is invisible to the bridge, which re-emits only the contract fields, and the
-     * amendment ratifies it; {@code docs/adr/ADR-025.link.md} records which components are still
-     * awaiting ratification.
+     * optional is invisible to the bridge, which re-emits only the contract fields; the amendment
+     * is what makes it part of the bridge contract ({@code docs/adr/ADR-025.link.md}).
      */
     @JsonRequest("exeris/domainDescribe")
     CompletableFuture<DomainDescription> domainDescribe(DomainDescribeParams params);

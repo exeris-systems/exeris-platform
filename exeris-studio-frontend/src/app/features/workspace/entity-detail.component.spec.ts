@@ -94,7 +94,7 @@ describe('EntityDetailComponent', () => {
     expect(compiled.textContent).toContain('POST');
     expect(compiled.textContent).toContain('reason');
 
-    // Relationships (ADR-025 amendment verification)
+    // Relationships: omitted = not carried, [] = none
     expect(desc?.relationships).toBeDefined();
     expect(desc?.relationships?.length).toBe(1);
     expect(desc?.relationships?.[0].targetEntity).toBe('OrderItem');
