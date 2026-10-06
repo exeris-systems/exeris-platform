@@ -256,7 +256,7 @@ class LauncherIT {
 
         /** One attempt once the server is known to be up: whether the handshake was accepted. */
         static boolean tryConnect(int port, String origin) throws Exception {
-            try (JarWsClient _ = open(port, origin)) {
+            try (var _ = open(port, origin)) {
                 return true;
             } catch (java.util.concurrent.ExecutionException _) {
                 return false;
