@@ -122,7 +122,7 @@ An earlier, pre-split iteration of this repo hosted a parallel domain model
 Studio backend. It was deliberately deleted during the repo split — having two
 metamodels (Studio's vs `DomainMetadata`'s) would have rotted in opposite
 directions. Studio now operates **exclusively** on the canonical model defined
-in [`exeris-sdk-source-model`](../exeris-sdk).
+in [`exeris-sdk-source-model`](https://github.com/exeris-systems/exeris-sdk/tree/main/exeris-sdk-source-model).
 
 ## License
 
