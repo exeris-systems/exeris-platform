@@ -11,8 +11,6 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Optional;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.locks.ReentrantLock;
 import tools.jackson.databind.ObjectMapper;
 
@@ -44,9 +42,19 @@ final class MutationApplyService {
     /** SDK consumer contract: Jackson 3 with null→primitive coercion tolerated (AST package-info). */
     private static final ObjectMapper MAPPER = SdkJson.MAPPER;
 
-    /** Process-wide, keyed by the file's real path, so every path that reaches one file (a symlink
-        included) shares its lock; one entry per file ever written. */
-    private static final ConcurrentMap<Path, ReentrantLock> FILE_LOCKS = new ConcurrentHashMap<>();
+    /**
+     * Process-wide lock stripes, chosen by the hash of the file's real path, so every path that
+     * reaches one file (a symlink included) takes the same lock. A fixed stripe count keeps the
+     * memory bounded however many files a long-lived launcher writes; two files that share a stripe
+     * only take turns, which costs latency and never correctness.
+     */
+    private static final ReentrantLock[] FILE_LOCKS = new ReentrantLock[64];
+
+    static {
+        for (int i = 0; i < FILE_LOCKS.length; i++) {
+            FILE_LOCKS[i] = new ReentrantLock();
+        }
+    }
 
     // MAPPER is a thread-safe Jackson mapper and the applier holds no per-call mutable state, so
     // both are safe to share between concurrent calls; the file itself is guarded by FILE_LOCKS.
@@ -86,7 +94,7 @@ final class MutationApplyService {
         }
         Path file = target.get().sourcePath();
 
-        ReentrantLock lock = FILE_LOCKS.computeIfAbsent(lockKey(file), k -> new ReentrantLock());
+        ReentrantLock lock = FILE_LOCKS[Math.floorMod(lockKey(file).hashCode(), FILE_LOCKS.length)];
         lock.lock();
         try {
             return applyToFile(op, params, file, onSourcesChanged);

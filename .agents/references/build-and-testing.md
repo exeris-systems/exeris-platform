@@ -28,6 +28,12 @@ credential; a fresh clone builds on its own, and CI clones nothing. Building aga
 upstream is the exception: install it from the sibling repository and override the pin on the
 command line, never in a commit. Procedure: `exeris-platform-sdk-dep-sync`.
 
+A pin bump needs no `mvn clean`. From SDK 0.12.0 on, `SchemaVersion.CURRENT` is initialised by a
+method rather than a constant expression, so its class file carries no `ConstantValue` attribute
+and javac does not inline the value into the tests that read it: they see the new jar's value
+without a recompile. Pinning an SDK older than 0.12.0 brings the inlining back, and with it the
+need for `clean` after the bump.
+
 ## Generated frontend code
 
 `exeris-studio-frontend/src/app/generated` is the output of `@exeris/codegen-ts` (an exact
