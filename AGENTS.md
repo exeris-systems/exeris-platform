@@ -55,8 +55,8 @@ Coordinates: groupId `eu.exeris.platform`, packages `eu.exeris.platform.*` and
 - **The standalone jar is a consumer contract**, and `LauncherIT` is what makes it one
   ([policy](.agents/policies/standalone-launcher-contract.md)). **JDK floor 25**, raised only with
   the kernel ([policy](.agents/policies/jdk-baseline.md)).
-- **A release is a tag**, published to GitHub Packages; Central follows the rest of the stack
-  ([policy](.agents/policies/release-and-distribution.md)).
+- **A release is a tag**, published to GitHub Packages; Central waits on this repository's own
+  release gate ([policy](.agents/policies/release-and-distribution.md)).
 - **Some changes are decisions** — the LSP surface, the open-core boundary, the write-back contract:
   trigger an ADR, do not just edit code ([policy](.agents/policies/adr-triggers.md)).
 

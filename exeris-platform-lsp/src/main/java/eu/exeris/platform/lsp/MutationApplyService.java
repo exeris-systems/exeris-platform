@@ -44,7 +44,8 @@ final class MutationApplyService {
     /** SDK consumer contract: Jackson 3 with null→primitive coercion tolerated (AST package-info). */
     private static final ObjectMapper MAPPER = SdkJson.MAPPER;
 
-    /** Process-wide, keyed by the normalised absolute source path; one entry per file ever written. */
+    /** Process-wide, keyed by the file's real path, so every path that reaches one file (a symlink
+        included) shares its lock; one entry per file ever written. */
     private static final ConcurrentMap<Path, ReentrantLock> FILE_LOCKS = new ConcurrentHashMap<>();
 
     // MAPPER is a thread-safe Jackson mapper and the applier holds no per-call mutable state, so
@@ -85,13 +86,21 @@ final class MutationApplyService {
         }
         Path file = target.get().sourcePath();
 
-        ReentrantLock lock = FILE_LOCKS.computeIfAbsent(
-                file.toAbsolutePath().normalize(), k -> new ReentrantLock());
+        ReentrantLock lock = FILE_LOCKS.computeIfAbsent(lockKey(file), k -> new ReentrantLock());
         lock.lock();
         try {
             return applyToFile(op, params, file, onSourcesChanged);
         } finally {
             lock.unlock();
+        }
+    }
+
+    /** The file's real path; a path that cannot be resolved (the read reports why) keys by itself. */
+    private static Path lockKey(Path file) {
+        try {
+            return file.toRealPath();
+        } catch (IOException _) {
+            return file.toAbsolutePath().normalize();
         }
     }
 
