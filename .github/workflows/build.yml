@@ -28,7 +28,13 @@ jobs:
         # the artifact actually starts there.
         #
         # 26 keeps the newest JDK from breaking silently — the row that would catch a JDK-26
-        # regression in a dependency.
+        # regression in a dependency. It reports but does not gate: nothing here needs a JDK above
+        # the floor (no preview features), so a 26-only failure is a signal, not a merge blocker.
+        #
+        # Branch protection on main requires `mvn install (JDK 25)` and `ng build + test (Node 24)`
+        # by name. A job or matrix rename changes the reported name, and a required check that no
+        # job reports blocks every pull request, so a rename and the protection update are one
+        # change.
         java: ['25', '26']
 
     steps:
