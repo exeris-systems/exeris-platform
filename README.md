@@ -8,9 +8,12 @@ between Studio, IDE plugins, and on-disk `@ExerisDomain` sources.
 > `exeris-sdk-source-model-io` (ADR-037), ships the read-only `exeris/*` trio
 > plus `exeris/applyMutation` (ADR-042), and now ships as a standalone launcher
 > that runs with no source tree (see [Running the LSP server](#running-the-lsp-server)).
-> `exeris-studio-backend` now models its own workspace state as an `@ExerisDomain` and emits it
-> to the `exeris-metadata` corpus, but exposes no surface over it yet; `exeris-studio-frontend` is
-> still a placeholder scaffolding the target architecture below.
+> The launcher serves the same surface over stdio and over WebSocket (`--websocket`).
+> `exeris-studio-frontend` connects to it over WebSocket and browses a workspace read-only: a tree
+> of its domains and an entity detail view. `exeris-studio-backend` models its own workspace
+> state as an `@ExerisDomain` and emits it to the `exeris-metadata` corpus. The Studio's Workspace
+> screens are generated from that corpus by `@exeris/codegen-ts` (`src/app/generated`). The HTTP
+> surface those screens call is not served yet.
 
 ## Architecture (target)
 
