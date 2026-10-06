@@ -168,7 +168,7 @@ jobs:
           # to it rather than creating it.
           gh release create "$TAG" \
             --title "$TAG" \
-            --notes "Standalone LSP launcher. Run it with \`java -jar exeris-platform-lsp-${VERSION}-standalone.jar\` — it speaks JSON-RPC over stdio and needs no source tree, no Maven and JDK 25 or newer.
+            --notes "Standalone LSP launcher. Run it with \`java -jar exeris-platform-lsp-${VERSION}-standalone.jar\` — it speaks JSON-RPC over stdio by default, or over WebSocket at \`ws://127.0.0.1:5007/lsp\` with \`--websocket\` (\`--port\`, \`--allowed-origin\`; \`--allow-remote\` to bind beyond loopback), and needs no source tree, no Maven and JDK 25 or newer.
 
           Also on GitHub Packages as \`eu.exeris.platform:exeris-platform-lsp:${VERSION}\` (classifier \`standalone\`). Fetch it with \`-Dtransitive=false\`: everything the launcher runs on is inside the jar, so resolving the POM's dependency tree beside it only downloads a second copy of the same classes." \
             "$JAR" \
