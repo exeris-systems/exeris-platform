@@ -3,9 +3,10 @@
 ## The rule
 
 - **`mvn deploy` goes to GitHub Packages, not Maven Central.** Central needs signing, sources and
-  javadoc jars and a readiness gate this repository does not have. The binding constraint is
-  sequencing, not machinery: the rest of the stack reaches Central first, and this repository
-  follows. "Add a `release` profile" is not a ready task; when it is, copy `exeris-kernel`'s.
+  javadoc jars and a readiness gate this repository does not have. The upstream half of the
+  sequencing is met — the kernel, SDK and tooling this repository builds on are on Central — so
+  what remains is this repository's own gate (ROADMAP). "Add a `release` profile" is not a ready
+  task until that gate is; when it is, copy `exeris-kernel`'s.
 - **A release is a tag and nothing else.** Pushing `v<x.y.z>` runs `.github/workflows/publish.yml`,
   which deploys. `workflow_dispatch` on that workflow is a dry run that touches nothing remote.
 - **Never publish on a push to `main`.** A development line shares one `-SNAPSHOT` coordinate, so
