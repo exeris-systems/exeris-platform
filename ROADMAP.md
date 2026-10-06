@@ -1,3 +1,12 @@
+---
+title: Exeris Platform — Roadmap to 1.0.0 GA
+type: roadmap
+visibility: public
+owning-repo: exeris-platform
+status: active
+last-verified: 2026-09-02
+---
+
 # Exeris Platform — Roadmap to 1.0.0 GA
 
 The platform is the **user-facing Exeris experience**: Studio (Angular shell +
