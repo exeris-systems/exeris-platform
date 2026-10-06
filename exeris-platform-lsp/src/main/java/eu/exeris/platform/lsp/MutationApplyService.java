@@ -11,6 +11,9 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Optional;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.locks.ReentrantLock;
 import tools.jackson.databind.ObjectMapper;
 
 /**
@@ -29,15 +32,23 @@ import tools.jackson.databind.ObjectMapper;
  * verdict that actually changes bytes; a convergent op is a {@code SUCCESS} no-op and is not
  * rewritten. Since the underlying writer is idempotent, applying the same op twice converges to
  * identical on-disk state. The index is invalidated only when bytes changed.
+ *
+ * <p><b>One writer per file at a time.</b> Each transport session owns its own server and so its
+ * own instance of this service, and sessions run concurrently. The read → apply → write of one
+ * source is therefore serialised per file across the whole process: a second op on the same file
+ * reads the bytes the first one wrote and is judged against them (merged, or reported as a
+ * {@code CONFLICT}), instead of overwriting them with a result computed from stale input.
  */
 final class MutationApplyService {
 
     /** SDK consumer contract: Jackson 3 with null→primitive coercion tolerated (AST package-info). */
     private static final ObjectMapper MAPPER = SdkJson.MAPPER;
 
-    // Shared across requests. Safe because LSP4J dispatches messages on a single reader thread
-    // (sequential), and MAPPER is a thread-safe Jackson mapper; the applier holds no per-call
-    // mutable state. If the server ever moves to async / thread-pool dispatch, revisit this.
+    /** Process-wide, keyed by the normalised absolute source path; one entry per file ever written. */
+    private static final ConcurrentMap<Path, ReentrantLock> FILE_LOCKS = new ConcurrentHashMap<>();
+
+    // MAPPER is a thread-safe Jackson mapper and the applier holds no per-call mutable state, so
+    // both are safe to share between concurrent calls; the file itself is guarded by FILE_LOCKS.
     private final SourceModelMutationApplier applier = new SourceModelMutationApplier();
 
     /**
@@ -74,6 +85,19 @@ final class MutationApplyService {
         }
         Path file = target.get().sourcePath();
 
+        ReentrantLock lock = FILE_LOCKS.computeIfAbsent(
+                file.toAbsolutePath().normalize(), k -> new ReentrantLock());
+        lock.lock();
+        try {
+            return applyToFile(op, params, file, onSourcesChanged);
+        } finally {
+            lock.unlock();
+        }
+    }
+
+    /** The read → apply → write of one source; the caller holds that file's lock. */
+    private JsonElement applyToFile(MutationOp op, ApplyMutationParams params, Path file,
+                                    Runnable onSourcesChanged) {
         String current;
         try {
             current = Files.readString(file);

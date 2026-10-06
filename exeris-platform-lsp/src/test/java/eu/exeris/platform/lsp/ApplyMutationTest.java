@@ -13,8 +13,13 @@ import eu.exeris.sdk.sourcemodel.mutation.MutationOp;
 import eu.exeris.sdk.sourcemodel.mutation.SchemaVersion;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.concurrent.CyclicBarrier;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import org.eclipse.lsp4j.InitializeParams;
+import org.junit.jupiter.api.RepeatedTest;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Timeout;
 import org.junit.jupiter.api.io.TempDir;
@@ -62,6 +67,10 @@ class ApplyMutationTest {
                 private String note;
             }
             """;
+
+    /** Same domain carrying a plain {@code memo} field: the second, independent op of the
+        concurrent-sessions case. */
+    private static final String ORDER_WITH_MEMO = ORDER_WITH_NOTE.replace("note", "memo");
 
     /** Same domain, but {@code code} has been retyped on disk — a user edit that drifts from the
         baseline, used to provoke a genuine CONFLICT. */
@@ -231,6 +240,40 @@ class ApplyMutationTest {
                 .get(5, TimeUnit.SECONDS);
 
         assertThat(outcome(result)).isEqualTo("VALIDATION_ERROR");
+    }
+
+    @RepeatedTest(20)
+    @Timeout(20)
+    void concurrentSessionsApplyingToTheSameFileBothSurvive(@TempDir Path workspace) throws Exception {
+        Path order = workspace.resolve("Order.java");
+        Files.writeString(order, ORDER);
+        // Two sessions = two servers, as the WebSocket transport allocates one per connection.
+        ExerisLanguageServer first = initServer(workspace);
+        ExerisLanguageServer second = initServer(workspace);
+        String baseline = trustworthyBaselineFor(ORDER);
+        JsonElement addNote = opElement(new MutationOp.AddField("/entities/Order/fields/note",
+                new SourceModelReader().read(ORDER_WITH_NOTE).orElseThrow().findField("note").orElseThrow()));
+        JsonElement addMemo = opElement(new MutationOp.AddField("/entities/Order/fields/memo",
+                new SourceModelReader().read(ORDER_WITH_MEMO).orElseThrow().findField("memo").orElseThrow()));
+
+        CyclicBarrier start = new CyclicBarrier(2);
+        try (ExecutorService sessions = Executors.newVirtualThreadPerTaskExecutor()) {
+            Future<JsonElement> a = sessions.submit(() -> {
+                start.await();
+                return first.applyMutation(new ApplyMutationParams(
+                        "com.example.shop.Order", addNote, baseline, null)).get(10, TimeUnit.SECONDS);
+            });
+            Future<JsonElement> b = sessions.submit(() -> {
+                start.await();
+                return second.applyMutation(new ApplyMutationParams(
+                        "com.example.shop.Order", addMemo, baseline, null)).get(10, TimeUnit.SECONDS);
+            });
+            assertThat(outcome(a.get(15, TimeUnit.SECONDS))).isEqualTo("SUCCESS");
+            assertThat(outcome(b.get(15, TimeUnit.SECONDS))).isEqualTo("SUCCESS");
+        }
+
+        // Neither write may discard the other: both reported SUCCESS, so both fields are on disk.
+        assertThat(Files.readString(order)).contains("private String note;", "private String memo;");
     }
 
     // ---- helpers ---------------------------------------------------------
