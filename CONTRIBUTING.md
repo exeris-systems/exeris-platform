@@ -32,6 +32,15 @@ the same in-job.
 `mvn test` does not exercise it. Run `mvn clean` before believing a local `applyMutation` failure
 that CI does not reproduce: a test class compiled against an older SDK keeps an inlined constant.
 
+## Agent files
+
+Agent instructions are authored in [`AGENTS.md`](AGENTS.md) and [`.agents/`](.agents); `.claude/`
+is generated from them, so edit the source and re-render rather than editing an adapter
+([`.claude/README.md`](.claude/README.md) has the commands). Each skill under `.claude/skills/` is
+a symlink into `.agents/skills/`. On Windows without symlink support (Developer Mode off), enable
+`core.symlinks` with Developer Mode, or render with `--skills-copy`; the manifest records that
+fallback under `degradations`.
+
 ## Architectural invariants
 
 `exeris-platform` is published under **Apache-2.0**. The rules a change is reviewed against are in
