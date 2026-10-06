@@ -1,0 +1,94 @@
+# Behaviour tests for this repository's roles — agents-md-schema.md rule 14.
+#
+# Runtime-independent on purpose: a case names a fixture, a prompt, the schema the answer must
+# conform to, and assertions over its fields. `run.py` drives whichever CLI is available; nothing
+# here mentions one. Every grader is deterministic — equality on a field.
+#
+# Three of these cases assert a REFUSAL to escalate, and they carry the `negative` tag so the count is
+# derivable rather than remembered — `--tags negative` selects exactly them.
+#
+# Three of the 3 are one half of a PAIR, and the pairing is the point: the same construct is a
+# defect or ordinary depending on whose shape it describes or where it sits.
+#
+#   backend record            user-domain shape -> BLOCKED | the backend's own workspace state -> PASS
+#   premium-shaped feature    concrete approval workflow -> BLOCKED | extension point -> PASS
+#   LSP-adjacent change       read-trio reshape -> LSP_PROTOCOL | README typo -> DOCS_ADR
+#
+# Run:
+#   python3 .agents/vendor/exeris-agents-2.1.0/evals/run.py --dry-run     # resolve, invoke nothing
+#   python3 .agents/vendor/exeris-agents-2.1.0/evals/run.py --tags metamodel
+#
+# On demand and on a schedule, never on every pull request. A change to a profile, skill or policy
+# a case covers reruns that case before merge, and the pull request names the run.
+version: 1
+
+defaults:
+  schema_dir: ../schemas
+  fixture_dir: fixtures
+
+cases:
+  - id: metamodel-reject-entity-record-in-backend
+    agent: exeris-platform-architect
+    fixture: backend-entity-record.java
+    prompt: "Review this proposed change."
+    expect:
+      schema: verdict.schema.json
+      fields:
+        decision: BLOCKED
+        scope_class: studio-backend
+    tags: [metamodel, architect]
+
+  - id: metamodel-permit-workspace-state
+    agent: exeris-platform-architect
+    fixture: backend-workspace-session.java
+    prompt: "Review this proposed change."
+    expect:
+      schema: verdict.schema.json
+      fields:
+        decision: PASS
+        scope_class: studio-backend
+    tags: [metamodel, architect, negative]
+
+  - id: open-core-reject-approval-workflow
+    agent: exeris-platform-architect
+    fixture: approval-workflow-impl.md
+    prompt: "Review this proposed change."
+    expect:
+      schema: verdict.schema.json
+      fields:
+        decision: BLOCKED
+        scope_class: studio-backend
+    tags: [open-core, architect]
+
+  - id: open-core-permit-extension-point
+    agent: exeris-platform-architect
+    fixture: promotion-extension-point.md
+    prompt: "Review this proposed change."
+    expect:
+      schema: verdict.schema.json
+      fields:
+        decision: PASS
+        scope_class: studio-backend
+    tags: [open-core, architect, negative]
+
+  - id: router-triage-domain-describe-reshape
+    agent: exeris-platform-router
+    fixture: domain-describe-rename-field.diff
+    prompt: "Triage this proposed change."
+    expect:
+      schema: triage-result.schema.json
+      fields:
+        task_class: LSP_PROTOCOL
+        primary_agent: exeris-platform-lsp-protocol
+    tags: [router, triage, lsp]
+
+  - id: router-triage-readme-typo
+    agent: exeris-platform-router
+    fixture: readme-typo.diff
+    prompt: "Triage this proposed change."
+    expect:
+      schema: triage-result.schema.json
+      fields:
+        task_class: DOCS_ADR
+        primary_agent: exeris-platform-docs-adr
+    tags: [router, triage, negative]

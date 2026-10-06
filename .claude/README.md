@@ -1,38 +1,70 @@
-# `.claude/` — Claude Code workspace for `exeris-platform`
+# `.claude/` — generated adapters and provider configuration
 
-This directory is loaded automatically when a Claude Code session opens inside
-`~/exeris-systems/exeris-platform/`. It exists alongside the repo-root [`CLAUDE.md`](../CLAUDE.md)
-and works as the operating context for AI assistants on Studio + LSP + studio-backend.
+This directory is **not** where project rules are authored. Per
+[`agents-md-schema.md`](https://github.com/exeris-systems/exeris-docs/blob/main/standards/agents-md-schema.md)
+rules 2 and 7, the canonical semantic source is [`.agents/`](../.agents) and this directory adapts it
+for Claude Code.
 
-## Layout
+- `agents/` — **generated** from `.agents/agents/<name>/AGENT.md`. Edit the source.
+- `skills/` — two kinds sharing one directory, which is why the link below is per skill and not
+  per directory:
+  - one **symlink per skill** into `.agents/skills/`. Nothing here stores a second copy; five of
+    the six runtimes read `.agents/skills/` natively and Claude Code is the one that does not.
+  - one **generated** `SKILL.md` per workflow, carrying `disable-model-invocation: true`. That is
+    the same user-invoked `/name` behaviour the former `commands/` directory gave, with one
+    adapter kind fewer.
+- `settings.json` — provider-owned, with a **generated region**: the renderer writes only the
+  `hooks` key and merges around everything else, so the file is yours and the region is the
+  layer's. It is declared under `provider-owned` in
+  [`.agents/manifest.yaml`](../.agents/manifest.yaml), because JSON has no comments to carry a
+  marker.
+- `settings.local.json` — provider-owned local configuration. Never semantic content.
+- `mcp.json` — provider-owned and git-ignored: it records an absolute working directory that is
+  true only on the machine that wrote it.
+- `worktrees/` — a legacy location for local git worktrees, kept git-ignored. New worktrees go
+  outside the repository.
 
-- `agents/` — sub-agents Claude can launch via the `Agent` tool (or the user can invoke directly):
-  - `exeris-platform-router.md` — entrypoint triage; classifies work and routes to the right specialist
-  - `exeris-platform-architect.md` — open-core boundary, no-parallel-metamodel discipline, module placement
-  - `exeris-platform-implementer.md` — concrete code changes in studio-backend / LSP / studio-frontend
-  - `exeris-platform-lsp-protocol.md` — LSP wire surface, `exeris/*` method namespacing, idempotent-writeback contract
-  - `exeris-platform-docs-adr.md` — ADR drift / README target-architecture sync / ROADMAP milestone bookkeeping
-- `commands/` — slash commands invocable as `/<command-name>`:
-  - `no-parallel-metamodel-check.md`, `lsp-protocol-purity.md`, `idempotent-writeback-check.md`, `open-core-boundary.md`
-- `skills/` — invocable skills (`/<skill-name>`), and also auto-dispatched by the model from their `description` triggers:
-  - Triage / planning: `exeris-platform-task-classifier`, `exeris-platform-routing-planner`
-  - Contract reviews (deep, evidence-gathering): `exeris-platform-no-parallel-metamodel-review`, `exeris-platform-lsp-protocol-review`, `exeris-platform-idempotent-writeback-review`, `exeris-platform-open-core-boundary-review`, `exeris-platform-frontend-projection-review` (frontend projection vs persistence)
-  - Sweep / gates / authoring: `exeris-platform-contract-sweep` (all five contracts in one pass), `exeris-platform-cross-build-validation` (Maven↔npm gate), `exeris-platform-sdk-dep-sync` (upstream `eu.exeris:*` resolvability), `exeris-platform-decision-doc-shape` (Research/RFC/ADR selector)
+A change made in this directory is lost the next time the renderer runs. That is the one thing to
+remember.
 
-### Commands vs review skills — when each fires
+## Rendering and checking them
 
-The four contract concerns exist as both a `commands/` entry and a `skills/…-review` entry, by design — they are two entry points, not a duplication to collapse:
+**This repository carries no renderer.** ADR-085 §C.11: two implementations of one schema is how
+the schema stops being one. Both halves come from `exeris-systems/exeris-agents`, pinned — the
+semantics vendored under `.agents/vendor/` and digest-verified, the tooling checked out in CI by
+`docs-lint` at the ref `.agents/manifest.yaml` pins.
 
-- **Command** (`/no-parallel-metamodel-check`, `/lsp-protocol-purity`, `/idempotent-writeback-check`, `/open-core-boundary`) — a fast, user-typed audit that takes the diff as `$ARGUMENTS`. Reach for it when you already have the change in hand.
-- **Review skill** (`exeris-platform-*-review`) — the deeper path the model auto-dispatches from its `description`. It gathers the diff and grep evidence itself, then walks a full procedure to an `APPROVE / CONDITIONAL / REJECT` verdict. Reach for it when the change should be reviewed without someone pasting a diff.
+```bash
+# with a checkout of exeris-systems/exeris-agents at the pinned ref
+python3 <bundle>/tools/agents_render.py     --root .          # rewrite every adapter from .agents/
+python3 <bundle>/tools/agents_render.py     --root . --check  # CI form: an adapter that differs is drift
+python3 <bundle>/tools/agents_file_check.py --root .          # the schema itself: layout, frontmatter, hooks, pins
+python3 <bundle>/tools/agents_bundle.py     verify --root .   # the vendored copy still matches its digest
+```
 
-## Doctrine — single source
+On a checkout without symlink support — Windows without Developer Mode — add `--skills-copy`. The
+manifest records that fallback under `degradations`, so it is a written trade-off rather than a
+surprise.
 
-Project doctrine is **not** duplicated under `.claude/` to avoid drift:
+Every generated file carries the do-not-edit marker naming the source it came from. The renderer
+diffs the authored half of a profile byte-for-byte and appends the composition — skills, policies,
+handoffs, response contract — under a marker, so an edit to either half is visible in `--check`.
 
-- **`/CLAUDE.md`** (repo root) — auto-loaded operating context (target architecture, hard constraints, scoped bans, build commands, open-core boundary).
-- **`README.md`** — target architecture diagram, module table, "no metamodel here" rationale (the pre-split metamodel deletion).
-- **`ROADMAP.md`** — milestone scope (0.1.0 scaffold shipped, 0.2.0+ in flight, 1.0.0 GA = Studio replaces the IDE for design-time work).
-- **Backend `package-info`** — canonical record of the metamodel deletion.
+## The L0 hooks
 
-When skills/agents need policy context, they reference these — they do not restate them.
+`settings.json`'s `hooks` block invokes one dispatcher and carries no patterns of its own; the
+patterns live in [`.agents/hooks/hooks.yaml`](../.agents/hooks/hooks.yaml) and are read at runtime.
+Two shapes: a **deny** for actions no policy permits, and a **record + gate** for actions a policy
+permits with a consequence — the action is allowed, what happened is written down, and the *stop*
+is blocked until the consequence has been discharged. Session state goes to `.agents-state/`,
+git-ignored and keyed per session.
+
+A stop gate establishes that a command ran. It never establishes that it was the right command, or
+that it passed.
+
+## Auto-memory
+
+Persistent memory for sessions opened in this repository lives outside it, under the Claude client's
+own per-project store. It is provider-owned and holds process feedback and user preferences only.
+Project facts belong in `AGENTS.md`, in `.agents/`, or in the documents and records that own them —
+versioned, and visible to humans and to other tools.
