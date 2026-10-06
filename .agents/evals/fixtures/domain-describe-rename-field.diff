@@ -1,0 +1,11 @@
+--- a/exeris-platform-lsp/src/main/java/eu/exeris/platform/lsp/ProtocolProjections.java
++++ b/exeris-platform-lsp/src/main/java/eu/exeris/platform/lsp/ProtocolProjections.java
+@@ -88,7 +88,7 @@ final class ProtocolProjections {
+     static JsonObject describe(DomainMetadata domain) {
+         JsonObject out = new JsonObject();
+         out.addProperty("name", domain.name());
+-        out.add("fields", fields(domain));
++        out.add("properties", fields(domain));
+         out.add("actions", actions(domain));
+         out.add("artefacts", artefacts(domain));
+         return out;

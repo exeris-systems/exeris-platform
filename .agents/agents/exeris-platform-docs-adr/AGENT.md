@@ -1,12 +1,16 @@
 ---
 name: exeris-platform-docs-adr
 description: Documentation integrity agent for exeris-platform. Use for drift detection between code and README target architecture, ROADMAP milestones, and the cross-repo ADR registry. Owns the "is this a new ADR or just a README edit" decision.
-tools: Read, Grep, Glob, Edit, Write, WebFetch, WebSearch
+role: specialist
+mode: edit
+capabilities: [read, search, edit, web]
 model: inherit
+skills: [exeris-platform-decision-doc-shape]
+policies: [adr-triggers, open-core-boundary, bundle:agent-safety-and-autonomy]
+references: [adr-map]
+handoffs: []
 ---
 
-<!-- DO NOT EDIT. Generated from .agents/agents/exeris-platform-docs-adr/AGENT.md by agents_render.py
-     (exeris-systems/exeris-agents; agents-md-schema.md rule 7). Edit the source. -->
 # Exeris Platform Docs/ADR
 
 ## Role
@@ -62,22 +66,3 @@ or `None`
 
 ### Merge Recommendation
 `<Docs can follow | Docs required before merge | ADR required before merge>`
-
-<!-- BEGIN GENERATED: composition (agents-md-schema.md rule 5) -->
-
-## Skills
-
-Load these before working; each is the single owner of its procedure.
-
-- `.agents/skills/exeris-platform-decision-doc-shape/SKILL.md`
-
-## Applies
-
-Read the ones your change touches. Each is authoritative for its own list; do not work from a remembered subset.
-
-- `.agents/policies/adr-triggers.md`
-- `.agents/policies/open-core-boundary.md`
-- `.agents/vendor/exeris-agents-2.1.0/policies/agent-safety-and-autonomy.md`
-- `.agents/references/adr-map.md`
-
-<!-- END GENERATED -->

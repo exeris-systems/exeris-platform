@@ -1,12 +1,19 @@
 ---
 name: exeris-platform-implementer
 description: Delivery agent for exeris-platform. Use to implement changes in studio-backend Java, LSP server Java, and Angular+React frontend code while preserving canonical-model and LSP-wire-boundary contracts.
-tools: Read, Grep, Glob, Edit, Write, Bash, WebFetch, WebSearch
+role: implementer
+mode: edit
+capabilities: [read, search, edit, shell, web]
 model: inherit
+skills: [exeris-platform-cross-build-validation, exeris-platform-sdk-dep-sync]
+policies: [no-parallel-metamodel, lsp-wire-boundary, idempotent-writeback, open-core-boundary, frontend-stack, studio-surface-sourcing, standalone-launcher-contract, jdk-baseline, bundle:agent-safety-and-autonomy, bundle:error-handling-and-fallback]
+references: [build-and-testing, cross-repo-dependencies]
+handoffs:
+  - {agent: exeris-platform-lsp-protocol, when: "the change touches an exeris/* method, a wire shape or the write path", blocking: true}
+  - {agent: exeris-platform-architect, when: "the change seems to need domain shape outside DomainMetadata, or a premium-shaped feature", blocking: true}
+  - {agent: exeris-platform-docs-adr, when: "README, ROADMAP or an ADR stub no longer matches the code", blocking: false}
 ---
 
-<!-- DO NOT EDIT. Generated from .agents/agents/exeris-platform-implementer/AGENT.md by agents_render.py
-     (exeris-systems/exeris-agents; agents-md-schema.md rule 7). Edit the source. -->
 # Exeris Platform Implementer
 
 ## Role
@@ -61,39 +68,3 @@ or `None`
 
 ### Escalation Needed
 `<None | exeris-platform-architect | exeris-platform-lsp-protocol | exeris-platform-docs-adr>`
-
-<!-- BEGIN GENERATED: composition (agents-md-schema.md rule 5) -->
-
-## Skills
-
-Load these before working; each is the single owner of its procedure.
-
-- `.agents/skills/exeris-platform-cross-build-validation/SKILL.md`
-- `.agents/skills/exeris-platform-sdk-dep-sync/SKILL.md`
-
-## Applies
-
-Read the ones your change touches. Each is authoritative for its own list; do not work from a remembered subset.
-
-- `.agents/policies/no-parallel-metamodel.md`
-- `.agents/policies/lsp-wire-boundary.md`
-- `.agents/policies/idempotent-writeback.md`
-- `.agents/policies/open-core-boundary.md`
-- `.agents/policies/frontend-stack.md`
-- `.agents/policies/studio-surface-sourcing.md`
-- `.agents/policies/standalone-launcher-contract.md`
-- `.agents/policies/jdk-baseline.md`
-- `.agents/vendor/exeris-agents-2.1.0/policies/agent-safety-and-autonomy.md`
-- `.agents/vendor/exeris-agents-2.1.0/policies/error-handling-and-fallback.md`
-- `.agents/references/build-and-testing.md`
-- `.agents/references/cross-repo-dependencies.md`
-
-## Handoffs
-
-| To | When | Blocking |
-|:--|:--|:--|
-| `exeris-platform-lsp-protocol` | the change touches an exeris/* method, a wire shape or the write path | yes |
-| `exeris-platform-architect` | the change seems to need domain shape outside DomainMetadata, or a premium-shaped feature | yes |
-| `exeris-platform-docs-adr` | README, ROADMAP or an ADR stub no longer matches the code | no |
-
-<!-- END GENERATED -->

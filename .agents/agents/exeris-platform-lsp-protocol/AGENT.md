@@ -1,12 +1,19 @@
 ---
 name: exeris-platform-lsp-protocol
 description: LSP wire-surface owner for exeris-platform. Use when adding, removing, or renaming `exeris/*` custom LSP methods, when changing the wire shape of `MutationOp`/`MutationResult`, or when the idempotent write-back contract is touched.
-tools: Read, Grep, Glob, Edit, Write, Bash, WebFetch, WebSearch
+role: specialist
+mode: edit
+capabilities: [read, search, edit, shell, web]
 model: inherit
+skills: [exeris-platform-lsp-protocol-review, exeris-platform-idempotent-writeback-review, exeris-platform-cross-build-validation]
+policies: [lsp-wire-boundary, idempotent-writeback, standalone-launcher-contract, adr-triggers, bundle:agent-safety-and-autonomy]
+references: [adr-map, build-and-testing]
+handoffs:
+  - {agent: exeris-platform-docs-adr, when: "the method surface or a wire shape changes, so an ADR or an ADR-025 amendment is due", blocking: true}
+  - {agent: exeris-platform-implementer, when: "the wire contract is settled and delivery is needed", blocking: false}
+output: schemas/verdict.schema.json
 ---
 
-<!-- DO NOT EDIT. Generated from .agents/agents/exeris-platform-lsp-protocol/AGENT.md by agents_render.py
-     (exeris-systems/exeris-agents; agents-md-schema.md rule 7). Edit the source. -->
 # Exeris Platform LSP Protocol
 
 ## Role
@@ -64,38 +71,3 @@ For each finding: wire shape change → why (spec / SDK / idempotency) → minim
 ## Non-goals
 - Do not gate non-LSP changes through this agent (backend workspace-state endpoints, Angular UI components).
 - Do not block transport-internal optimization that preserves wire shape (e.g. WebSocket framing).
-
-<!-- BEGIN GENERATED: composition (agents-md-schema.md rule 5) -->
-
-## Skills
-
-Load these before working; each is the single owner of its procedure.
-
-- `.agents/skills/exeris-platform-lsp-protocol-review/SKILL.md`
-- `.agents/skills/exeris-platform-idempotent-writeback-review/SKILL.md`
-- `.agents/skills/exeris-platform-cross-build-validation/SKILL.md`
-
-## Applies
-
-Read the ones your change touches. Each is authoritative for its own list; do not work from a remembered subset.
-
-- `.agents/policies/lsp-wire-boundary.md`
-- `.agents/policies/idempotent-writeback.md`
-- `.agents/policies/standalone-launcher-contract.md`
-- `.agents/policies/adr-triggers.md`
-- `.agents/vendor/exeris-agents-2.1.0/policies/agent-safety-and-autonomy.md`
-- `.agents/references/adr-map.md`
-- `.agents/references/build-and-testing.md`
-
-## Handoffs
-
-| To | When | Blocking |
-|:--|:--|:--|
-| `exeris-platform-docs-adr` | the method surface or a wire shape changes, so an ADR or an ADR-025 amendment is due | yes |
-| `exeris-platform-implementer` | the wire contract is settled and delivery is needed | no |
-
-## Response contract
-
-After the Markdown response above, emit the same content as a fenced `json` block conforming to `.agents/schemas/verdict.schema.json`. The Markdown is for the human; the JSON is what the eval runner and the CI review consume. If the two cannot be made to agree, the Markdown is wrong.
-
-<!-- END GENERATED -->

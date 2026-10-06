@@ -1,12 +1,21 @@
 ---
 name: exeris-platform-router
 description: Entry router for exeris-platform. Use proactively for triage to classify a Studio / LSP / backend task and recommend a specialist agent. Invoke when scope crosses modules or the right specialist is not obvious.
-tools: Read, Grep, Glob, WebFetch, WebSearch
+role: router
+mode: read-only
+capabilities: [read, search, web]
 model: inherit
+skills: [exeris-platform-task-classifier, exeris-platform-routing-planner, exeris-platform-contract-sweep]
+policies: [no-parallel-metamodel, lsp-wire-boundary, idempotent-writeback, open-core-boundary, adr-triggers, bundle:agent-safety-and-autonomy]
+references: [build-and-testing, cross-repo-dependencies]
+handoffs:
+  - {agent: exeris-platform-architect, when: "module placement, open-core boundary or a parallel-metamodel risk is the primary risk", blocking: true}
+  - {agent: exeris-platform-lsp-protocol, when: "an exeris/* method, a wire shape or the write-back path changes", blocking: true}
+  - {agent: exeris-platform-implementer, when: "placement and contract are settled and delivery is needed", blocking: false}
+  - {agent: exeris-platform-docs-adr, when: "README, ROADMAP or ADR drift, or a change that triggers an ADR", blocking: false}
+output: schemas/triage-result.schema.json
 ---
 
-<!-- DO NOT EDIT. Generated from .agents/agents/exeris-platform-router/AGENT.md by agents_render.py
-     (exeris-systems/exeris-agents; agents-md-schema.md rule 7). Edit the source. -->
 # Exeris Platform Router
 
 ## Role
@@ -99,41 +108,3 @@ or `None`
 
 ## Non-goal
 Do not behave as a release gate. Premium-shape blocking, LSP shape gating, and metamodel-regression refusal go through specialists; router routes.
-
-<!-- BEGIN GENERATED: composition (agents-md-schema.md rule 5) -->
-
-## Skills
-
-Load these before working; each is the single owner of its procedure.
-
-- `.agents/skills/exeris-platform-task-classifier/SKILL.md`
-- `.agents/skills/exeris-platform-routing-planner/SKILL.md`
-- `.agents/skills/exeris-platform-contract-sweep/SKILL.md`
-
-## Applies
-
-Read the ones your change touches. Each is authoritative for its own list; do not work from a remembered subset.
-
-- `.agents/policies/no-parallel-metamodel.md`
-- `.agents/policies/lsp-wire-boundary.md`
-- `.agents/policies/idempotent-writeback.md`
-- `.agents/policies/open-core-boundary.md`
-- `.agents/policies/adr-triggers.md`
-- `.agents/vendor/exeris-agents-2.1.0/policies/agent-safety-and-autonomy.md`
-- `.agents/references/build-and-testing.md`
-- `.agents/references/cross-repo-dependencies.md`
-
-## Handoffs
-
-| To | When | Blocking |
-|:--|:--|:--|
-| `exeris-platform-architect` | module placement, open-core boundary or a parallel-metamodel risk is the primary risk | yes |
-| `exeris-platform-lsp-protocol` | an exeris/* method, a wire shape or the write-back path changes | yes |
-| `exeris-platform-implementer` | placement and contract are settled and delivery is needed | no |
-| `exeris-platform-docs-adr` | README, ROADMAP or ADR drift, or a change that triggers an ADR | no |
-
-## Response contract
-
-After the Markdown response above, emit the same content as a fenced `json` block conforming to `.agents/schemas/triage-result.schema.json`. The Markdown is for the human; the JSON is what the eval runner and the CI review consume. If the two cannot be made to agree, the Markdown is wrong.
-
-<!-- END GENERATED -->
