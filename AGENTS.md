@@ -23,7 +23,8 @@ sync, and the studio backend that holds the platform's own workspace state.
 
 The canonical model is `DomainMetadata`, defined in `exeris-sdk-source-model`. This repository holds
 no second one. `exeris-platform-lsp` is past scaffold — it ships the read-only `exeris/*` trio, the
-writer `exeris/applyMutation` and a standalone launcher; the backend and the frontend are earlier.
+writer `exeris/applyMutation` with its write-free preview `exeris/previewMutation`, and a standalone
+launcher; the backend and the frontend are earlier.
 Where a document and the code disagree about what has shipped, the code wins.
 
 Coordinates: groupId `eu.exeris.platform`, packages `eu.exeris.platform.*` and

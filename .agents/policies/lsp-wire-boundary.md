@@ -15,12 +15,14 @@ plugins do **not** call backend Java directly for domain shape; they speak JSON-
   annotations in
   `exeris-platform-lsp/src/main/java/eu/exeris/platform/lsp/ExerisProtocolExtensions.java`, never
   from a document. Today that is the read-only trio `exeris/domains`, `exeris/domainDescribe`,
-  `exeris/actions`, and the single writer `exeris/applyMutation`.
-- **The two halves have different consumers, deliberately.** The read trio backs
-  `exeris-ai-bridge`'s `lsp:*` tool family, with wire shapes pinned by ADR-025: renaming or
-  reshaping any of the three means amending ADR-025 and the bridge's tool definitions before
-  merging. `exeris/applyMutation` is **not** in that slice — ADR-025 bars the bridge from the write
-  path. Wiring the bridge to the writer is a boundary change that needs its own ADR.
+  `exeris/actions`, the single writer `exeris/applyMutation`, and its read-only sibling
+  `exeris/previewMutation`, which computes the same write and returns it as a diff.
+- **The two halves have different consumers, deliberately.** The read trio and
+  `exeris/previewMutation` back `exeris-ai-bridge`'s `lsp:*` tool family, with wire shapes pinned by
+  ADR-025: renaming or reshaping any of them means amending ADR-025 and the bridge's tool
+  definitions before merging. `exeris/applyMutation` is **not** in that slice — ADR-025 bars the
+  bridge from the write path, and a preview never writes. Wiring the bridge to the writer is a
+  boundary change that needs its own ADR.
 - **The backend's HTTP surface is for workspace state and project management only**
   ([`no-parallel-metamodel.md`](no-parallel-metamodel.md)).
 
