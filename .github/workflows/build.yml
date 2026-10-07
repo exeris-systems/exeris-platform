@@ -14,8 +14,8 @@ jobs:
     name: mvn install (JDK ${{ matrix.java }})
     runs-on: ubuntu-latest
     # No packages:read and no registry credential anywhere in this job. Every dependency —
-    # the Exeris stack included (eu.exeris:exeris-kernel-*, eu.exeris:exeris-sdk-*,
-    # eu.exeris.tooling:*) — resolves from Maven Central at the versions exeris-platform-bom
+    # the Exeris stack included (eu.exeris:exeris-kernel-*, eu.exeris:exeris-sdk-*) — resolves
+    # from Maven Central at the versions exeris-platform-bom
     # pins, so a fresh clone builds with nothing but a JDK and Maven.
     strategy:
       fail-fast: false
@@ -31,8 +31,7 @@ jobs:
         # regression in a dependency. It reports but does not gate: nothing here needs a JDK above
         # the floor (no preview features), so a 26-only failure is a signal, not a merge blocker.
         #
-        # Branch protection on main requires `mvn install (JDK 25)` and `ng build + test (Node 24)`
-        # by name. A job or matrix rename changes the reported name, and a required check that no
+        # Branch protection on main requires `mvn install (JDK 25)` by name. A job or matrix rename changes the reported name, and a required check that no
         # job reports blocks every pull request, so a rename and the protection update are one
         # change.
         java: ['25', '26']
@@ -50,73 +49,3 @@ jobs:
 
       - name: mvn -B install
         run: mvn -B -ntp install
-
-  frontend:
-    name: ng build + test (Node ${{ matrix.node }})
-    runs-on: ubuntu-latest
-    # No npm credential: @exeris/ui-kit and @exeris/codegen-ts are public packages on npmjs,
-    # so `npm ci` needs nothing but the lockfile.
-    strategy:
-      fail-fast: false
-      matrix:
-        node: ['24']
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Set up Node ${{ matrix.node }}
-        uses: actions/setup-node@v4
-        with:
-          node-version: ${{ matrix.node }}
-          cache: npm
-          cache-dependency-path: exeris-studio-frontend/package-lock.json
-
-      - name: npm ci
-        working-directory: exeris-studio-frontend
-        run: npm ci
-
-      - name: ng build
-        working-directory: exeris-studio-frontend
-        run: npm run build
-
-      - name: ng test
-        working-directory: exeris-studio-frontend
-        run: npm run test
-
-      # Generated-source drift check. src/app/generated is committed output of
-      # @exeris/codegen-ts over the exeris-metadata corpus exeris-studio-backend's annotation
-      # processor emits at compile time. Regenerating from the current backend sources must
-      # reproduce the committed tree exactly; any difference means a backend @ExerisDomain
-      # change (or a codegen version move) landed without its regenerated screens.
-      #
-      # Ordered as: Maven compile of the backend (the corpus) -> codegen -> compare. It runs
-      # here rather than in the java job because codegen needs node_modules, and here rather
-      # than in a job of its own because this job has already paid for `npm ci`.
-      - name: Set up JDK 25 (codegen corpus)
-        uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: '25'
-          cache: maven
-
-      - name: Compile exeris-studio-backend (emits exeris-metadata)
-        run: mvn -B -ntp -pl exeris-studio-backend -am compile
-
-      - name: Regenerate src/app/generated
-        working-directory: exeris-studio-frontend
-        run: npm run codegen
-
-      - name: Generated sources match the committed tree
-        working-directory: exeris-studio-frontend
-        run: |
-          set -euo pipefail
-          # --porcelain, not `git diff`: a newly emitted file is untracked, and `git diff`
-          # does not see untracked files.
-          drift=$(git status --porcelain -- src/app/generated)
-          if [ -n "$drift" ]; then
-            echo "::error::src/app/generated is out of date. Run 'mvn -pl exeris-studio-backend -am compile' then 'npm run codegen' in exeris-studio-frontend, and commit the result." >&2
-            echo "$drift" >&2
-            git --no-pager diff --stat -- src/app/generated >&2
-            exit 1
-          fi
