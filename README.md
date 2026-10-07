@@ -53,9 +53,10 @@ Studio (closed)      exeris-ai-bridge      IntelliJ Plugin      VS Code Extensio
 > golden fixture used only versioned provides. The golden vector survives as the cross-module
 > conformance pin in the SDK's own `CompositionBindingTest`.
 >
-> This repo is the **deploy-time control plane** (obligation 8c) — it *consumes* the composition
-> library for multi-SKU / mesh / multi-host composition; it does not host the in-jar boot runtime.
-> Build-time composition (DAG validation, stamp emission) stays in `exeris-tooling`.
+> ADR-024 (obligation 8c) assigns the **deploy-time control plane** — consuming the composition
+> library for multi-SKU / mesh / multi-host composition — to this repository. Nothing in its one
+> module, `exeris-platform-lsp`, does that; where that role lives is ADR-024's to settle. Build-time
+> composition (DAG validation, stamp emission) stays in `exeris-tooling`.
 
 ## Open-core split
 
