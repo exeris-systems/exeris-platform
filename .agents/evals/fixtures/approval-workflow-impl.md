@@ -1,6 +1,6 @@
 # Proposal: approvals for schema changes
 
-Add `ApprovalService` and an `approvals` table to `exeris-studio-backend`. Before
-`exeris/applyMutation` writes to disk, Studio asks the backend whether the mutation needs an
-approver; if so, the mutation is queued until a user with the `domain-approver` role approves it in
-a new "Pending approvals" screen. Roles are assigned per organisation in a new `org_roles` table.
+Add `ApprovalService` and an `approvals` store to `exeris-platform-lsp`. Before
+`exeris/applyMutation` writes to disk, the server checks whether the mutation needs an approver; if
+so, the mutation is queued until a user with the `domain-approver` role approves it through a new
+`exeris/approveMutation` method. Roles are assigned per organisation in a new `org_roles` store.

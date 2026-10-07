@@ -1,7 +1,7 @@
 # Policy: JDK Baseline
 
-**The JDK floor is 25** — `maven.compiler.release` in the root POM — matching `exeris-kernel`,
-`exeris-sdk` and `exeris-tooling`.
+**The JDK floor is 25** — `maven.compiler.release` in the root POM — matching `exeris-kernel` and
+`exeris-sdk`.
 
 ## The rule
 

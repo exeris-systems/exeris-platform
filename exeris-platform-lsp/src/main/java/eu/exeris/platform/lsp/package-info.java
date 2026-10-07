@@ -14,13 +14,14 @@
  * <p>Planned scope:
  * <ul>
  *   <li>Standard LSP transport (JSON-RPC over stdio / TCP / WebSocket) so
- *       that Studio (Angular over WebSocket), IntelliJ plugin (in-JVM), and
- *       VS Code extension (LSP client) all consume the same server.</li>
+ *       that every client — Studio and other browser clients over WebSocket,
+ *       IDE plugins and exeris-ai-bridge over stdio — consumes the same server.</li>
  *   <li>Custom Exeris extensions under {@code exeris/}: the read-only
- *       {@code exeris/domains}, {@code exeris/domainDescribe}, {@code exeris/actions}
- *       and the write-back {@code exeris/applyMutation} (all shipped).</li>
+ *       {@code exeris/domains}, {@code exeris/domainDescribe}, {@code exeris/actions},
+ *       the write-back {@code exeris/applyMutation} and its write-free
+ *       {@code exeris/previewMutation} (all shipped).</li>
  *   <li>File watching with versioned document handling for conflict-free
- *       Studio↔IDE bidirectional sync.</li>
+ *       bidirectional sync between clients and the sources on disk.</li>
  *   <li>Idempotent {@code .java} write-back via the
  *       {@code exeris-sdk-source-model-io} writer, preserving formatting,
  *       comments, and {@code *Impl} custom regions — applying the same

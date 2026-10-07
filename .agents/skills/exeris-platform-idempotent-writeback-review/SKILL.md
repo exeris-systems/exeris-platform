@@ -8,7 +8,7 @@ description: Deep, evidence-gathering review that the same `MutationOp` applied 
 ## Purpose
 Enforce the contract: applying the same `MutationOp` twice converges to identical on-disk state. No duplicated imports, no shifted line numbers, no whitespace drift between rounds.
 
-This is what makes Studio + IDE plugins + on-disk sources safe to round-trip through each other.
+This is what makes every editing client (IDE plugins, Studio) and the on-disk sources safe to round-trip through each other.
 
 ## When to Use
 - Any PR touching `exeris/applyMutation` handler or its downstream writer integration.

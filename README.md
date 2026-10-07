@@ -1,26 +1,25 @@
 # Exeris Platform
 
-The user-facing platform of Exeris: Studio (Angular shell + embedded React
-editor), backend services, and the LSP server that powers bidirectional sync
-between Studio, IDE plugins, and on-disk `@ExerisDomain` sources.
+The open-source design-time protocol of Exeris: the LSP server that keeps its clients and the
+on-disk `@ExerisDomain` sources in sync, over the `exeris/*` surface, with idempotent write-back.
 
-> **Status:** uneven. `exeris-platform-lsp` is past scaffold — it depends on
-> `exeris-sdk-source-model-io` (ADR-037), ships the read-only `exeris/*` trio
-> plus `exeris/applyMutation` (ADR-042), and now ships as a standalone launcher
-> that runs with no source tree (see [Running the LSP server](#running-the-lsp-server)).
-> The launcher serves the same surface over stdio and over WebSocket (`--websocket`).
-> `exeris-studio-frontend` connects to it over WebSocket and browses a workspace read-only: a tree
-> of its domains and an entity detail view. `exeris-studio-backend` models its own workspace
-> state as an `@ExerisDomain` and emits it to the `exeris-metadata` corpus. The Studio's Workspace
-> screens are generated from that corpus by `@exeris/codegen-ts` (`src/app/generated`). The HTTP
-> surface those screens call is not served yet.
+Its clients are IDE plugins over stdio, `exeris-ai-bridge` (the read surface and
+`exeris/previewMutation`, never the writer — ADR-025), and Studio over WebSocket. Studio — the
+graph editor, its workspace state, the visual CMS and accounts — is Exeris' own product behind
+registration and is not in this repository. This repository holds only what must be open source.
+
+> **Status:** `exeris-platform-lsp` depends on `exeris-sdk-source-model-io` (ADR-037), ships the
+> read-only `exeris/*` trio, the writer `exeris/applyMutation` (ADR-042) and its write-free sibling
+> `exeris/previewMutation`, and ships as a standalone launcher that runs with no source tree (see
+> [Running the LSP server](#running-the-lsp-server)). The launcher serves the same surface over
+> stdio and over WebSocket (`--websocket`).
 
 ## Architecture (target)
 
 ```
-Studio (Angular + React)              IntelliJ Plugin           VS Code Extension
-       │                                    │                          │
-       └────────────── LSP (JSON-RPC) ──────┴──────────────────────────┘
+Studio (closed)      exeris-ai-bridge      IntelliJ Plugin      VS Code Extension
+       │                     │                    │                    │
+       └─────────────────────┴── LSP (JSON-RPC) ──┴────────────────────┘
                                   │
                        exeris-platform-lsp
                                   │
@@ -34,15 +33,13 @@ Studio (Angular + React)              IntelliJ Plugin           VS Code Extensio
                        + exeris-metadata/*.json
 ```
 
-**One canonical model, three editing surfaces, idempotent write-back.**
+**One canonical model, one protocol for every client, idempotent write-back.**
 
 ## Modules
 
 | Module | Stack | Purpose |
 |---|---|---|
-| [`exeris-studio-backend`](exeris-studio-backend) | Java 25 | The platform's own operational state (workspaces today) and the REST/HTTP surface over it for the Studio frontend. **Holds no domain model** — all domain shape lives in `DomainMetadata` accessed via the LSP server. |
-| [`exeris-studio-frontend`](exeris-studio-frontend) | Angular | Studio shell + embedded React editor. Communicates with the LSP server over WebSocket. |
-| [`exeris-platform-lsp`](exeris-platform-lsp) | Java 25 | LSP server hosting `DomainMetadata`, exposing the custom Exeris extensions declared in [`ExerisProtocolExtensions`](exeris-platform-lsp/src/main/java/eu/exeris/platform/lsp/ExerisProtocolExtensions.java): read-only `exeris/domains`, `exeris/domainDescribe`, `exeris/actions`, and the single writer `exeris/applyMutation`. Also publishes a `-standalone` shaded launcher. |
+| [`exeris-platform-lsp`](exeris-platform-lsp) | Java 25 | LSP server hosting `DomainMetadata`, exposing the custom Exeris extensions declared in [`ExerisProtocolExtensions`](exeris-platform-lsp/src/main/java/eu/exeris/platform/lsp/ExerisProtocolExtensions.java): read-only `exeris/domains`, `exeris/domainDescribe`, `exeris/actions`, the single writer `exeris/applyMutation`, and `exeris/previewMutation`, which returns the writer's change as a diff without writing. Also publishes a `-standalone` shaded launcher. |
 | `exeris-platform-bom` | — | Bill of materials. |
 | `exeris-platform-parent` | — | Common Maven build configuration. |
 
@@ -56,44 +53,37 @@ Studio (Angular + React)              IntelliJ Plugin           VS Code Extensio
 > golden fixture used only versioned provides. The golden vector survives as the cross-module
 > conformance pin in the SDK's own `CompositionBindingTest`.
 >
-> This repo is the **deploy-time control plane** (obligation 8c) — it *consumes* the composition
-> library for multi-SKU / mesh / multi-host composition; it does not host the in-jar boot runtime.
-> Build-time composition (DAG validation, stamp emission) stays in `exeris-tooling`.
+> ADR-024 (obligation 8c) assigns the **deploy-time control plane** — consuming the composition
+> library for multi-SKU / mesh / multi-host composition — to this repository. Nothing in its one
+> module, `exeris-platform-lsp`, does that; where that role lives is ADR-024's to settle. Build-time
+> composition (DAG validation, stamp emission) stays in `exeris-tooling`.
 
 ## Open-core split
 
-This repository is **open-source** (Apache-2.0). Premium features ship in a
-separate, closed-source `exeris-platform-enterprise` repository:
+This repository is **open-source** (Apache-2.0) and holds only what must be: the LSP server and its
+protocol, which every client — open or closed — speaks. Studio, its workspace state, the visual
+CMS and accounts are a closed product. Premium features never land here either:
 
 - multi-environment promotion (dev → staging → prod)
 - design-time RBAC and approval workflows
 - audit dashboards
 - multi-tenant org management
-- enterprise-only Studio plugins
 
-The split mirrors the kernel `community / enterprise` model and exists for the
-same reason: the open core must be a fully usable Studio for any single team.
+An extension point a closed client needs from the server — a transport authentication seam, for
+example — is open-core work; its implementations are not.
 
 ## Requirements
 
 - JDK 25+ (the reactor compiles to `release 25`; CI builds on 25 and 26)
 - Maven 3.9+
-- Node 24+ (`exeris-studio-frontend` — required by `package.json` engines field; Angular 22)
-- No credentials: the Exeris stack (kernel, SDK, tooling) resolves from Maven Central at the
-  versions `exeris-platform-bom` pins, and `@exeris/ui-kit` and `@exeris/codegen-ts` resolve
-  from npmjs.
+- No credentials: the Exeris stack (kernel, SDK) resolves from Maven Central at the versions
+  `exeris-platform-bom` pins.
 
 ## Build
 
 ```bash
-mvn install                                                            # backend + LSP
-cd exeris-studio-frontend && npm ci && npm run build && npm run test   # frontend
+mvn install
 ```
-
-`mvn install` comes first: the frontend's generated screens are emitted from
-`exeris-studio-backend`'s metadata corpus. `npm run codegen` regenerates `src/app/generated/`
-with `@exeris/codegen-ts`. Those files are committed and never edited by hand, and CI fails when
-a regeneration differs from what is committed.
 
 ## Running the LSP server
 
@@ -143,12 +133,11 @@ and then died on its first call.
 
 ## Why no metamodel here
 
-An earlier, pre-split iteration of this repo hosted a parallel domain model
-(`EntityDefinition`, `PropertyDefinition`, `RelationDefinition`) inside the
-Studio backend. It was deliberately deleted during the repo split — having two
-metamodels (Studio's vs `DomainMetadata`'s) would have rotted in opposite
-directions. Studio now operates **exclusively** on the canonical model defined
-in [`exeris-sdk-source-model`](https://github.com/exeris-systems/exeris-sdk/tree/main/exeris-sdk-source-model).
+The server holds no domain model of its own. It reads `@ExerisDomain` sources into the canonical
+`DomainMetadata` defined in
+[`exeris-sdk-source-model`](https://github.com/exeris-systems/exeris-sdk/tree/main/exeris-sdk-source-model),
+projects it onto the wire, and writes changes back through the SDK writer. A second model beside
+it would drift from the first, and every client would have to know which one it was talking to.
 
 ## License
 

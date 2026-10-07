@@ -14,7 +14,7 @@ Audit this change for idempotent write-back.
 
 Contract:
 - The LSP server is the only writer to on-disk sources.
-- Mutations flow Studio/IDE → LSP `exeris/applyMutation` → `exeris-sdk-source-model-io` writer → disk.
+- Mutations flow client (IDE plugin, Studio) → LSP `exeris/applyMutation` → `exeris-sdk-source-model-io` writer → disk.
 - Applying the same `MutationOp` twice MUST converge to identical on-disk state:
   - No duplicated imports.
   - No shifted line numbers (relative to a reference snapshot).

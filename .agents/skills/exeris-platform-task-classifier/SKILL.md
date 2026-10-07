@@ -1,6 +1,6 @@
 ---
 name: exeris-platform-task-classifier
-description: Triage step for any incoming exeris-platform task. Use FIRST — before routing or implementation — to classify a Studio / LSP / studio-backend request into task type (architecture / backend / LSP / frontend / docs / cross-build), scope, severity, and primary contract risk, and to name the specialist agent that should own it. Invoke whenever the owning module or the main risk is not yet obvious, or when scope may cross modules.
+description: Triage step for any incoming exeris-platform task. Use FIRST — before routing or implementation — to classify an LSP server / protocol / build / docs request into task type (architecture / implementation / LSP protocol / docs / multi-domain), scope, severity, and primary contract risk, and to name the specialist agent that should own it. Invoke whenever the owner or the main risk is not yet obvious, or when scope may cross concerns.
 ---
 
 # Exeris Platform Task Classifier
@@ -10,19 +10,17 @@ Classify incoming work before execution starts. Triage only — no implementatio
 
 ## Output Contract
 Return exactly:
-1. `task_class` (`ARCHITECTURE` | `BACKEND_IMPLEMENTATION` | `LSP_PROTOCOL` | `FRONTEND_IMPLEMENTATION` | `DOCS_ADR` | `CROSS_BUILD` | `MULTI_DOMAIN`)
-2. `scope` (single-module | cross-module | cross-build [Maven↔npm])
+1. `task_class` (`ARCHITECTURE` | `IMPLEMENTATION` | `LSP_PROTOCOL` | `DOCS_ADR` | `MULTI_DOMAIN`)
+2. `scope` (single-module | cross-module | cross-repo)
 3. `severity` (low | medium | high | critical)
 4. `primary_risk`
 5. `recommended_primary_agent`
 
 ## Classification Heuristics
-- `ARCHITECTURE`: module placement, no-parallel-metamodel, open-core boundary, LSP-vs-backend-HTTP scope.
-- `BACKEND_IMPLEMENTATION`: `exeris-studio-backend` Java workspace-state code.
-- `LSP_PROTOCOL`: `exeris-platform-lsp` server, wire surface, `exeris/*` methods, idempotent write-back.
-- `FRONTEND_IMPLEMENTATION`: `exeris-studio-frontend` Angular + embedded React UI.
+- `ARCHITECTURE`: placement, no-parallel-metamodel, open-core boundary — including any request for Studio, CMS or account functionality, which belongs to the closed product.
+- `IMPLEMENTATION`: `exeris-platform-lsp` server code that keeps every wire shape; `exeris-platform-bom` / `exeris-platform-parent` and build plumbing.
+- `LSP_PROTOCOL`: wire surface, `exeris/*` methods, transport parity, idempotent write-back.
 - `DOCS_ADR`: README target architecture, ROADMAP milestones, cross-repo ADR registry.
-- `CROSS_BUILD`: changes require coordination across Maven reactor and npm package.
 - `MULTI_DOMAIN`: at least two classes above are first-order concerns.
 
 ## Guardrails

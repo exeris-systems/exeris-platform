@@ -6,7 +6,7 @@
     <parent>
         <groupId>eu.exeris.platform</groupId>
         <artifactId>exeris-platform-root</artifactId>
-        <version>0.4.0-SNAPSHOT</version>
+        <version>0.5.0-SNAPSHOT</version>
     </parent>
 
     <artifactId>exeris-platform-bom</artifactId>
@@ -16,24 +16,14 @@
     <description>Bill of materials for platform modules and third-party deps.</description>
 
     <properties>
-        <!-- The Exeris stack resolves from Maven Central like any other dependency: kernel, sdk and
-             tooling are all published there, so the build holds no sibling checkout and these three
+        <!-- The Exeris stack resolves from Maven Central like any other dependency: kernel and sdk
+             are both published there, so the build holds no sibling checkout and these two
              properties are the only place the Maven side names the stack versions.
 
              exeris-sdk-bom is IMPORTED below rather than restated, so the SDK modules and the
              third-party versions the SDK is built and tested against (Jackson among them) have one
-             source of truth: bumping exeris.sdk.version moves them together.
-
-             From exeris-tooling, exeris-processor is the one artifact a module consumes — the
-             annotation processor exeris-studio-backend runs to emit its exeris-metadata/*.json
-             corpus; exeris-codegen-core is managed but not consumed. The same corpus feeds
-             `@exeris/codegen-ts`, the npm half of the tooling release (outside the tooling Maven
-             reactor), which generates the Studio's own Angular 22 screens under
-             exeris-studio-frontend/src/app/generated. The devDependency in
-             exeris-studio-frontend/package.json names the same tooling version as this property;
-             move both together. -->
+             source of truth: bumping exeris.sdk.version moves them together. -->
         <exeris.sdk.version>0.12.0</exeris.sdk.version>
-        <exeris.tooling.version>0.9.0</exeris.tooling.version>
         <exeris.kernel.version>0.12.0</exeris.kernel.version>
 
         <lsp4j.version>0.23.1</lsp4j.version>
@@ -108,26 +98,7 @@
                 <version>${gson.version}</version>
             </dependency>
 
-            <!-- Exeris Tooling (build-time). exeris-processor is the annotation processor that
-                 turns @ExerisDomain sources into the exeris-metadata/*.json corpus; codegen-core
-                 is the emitter side, not yet consumed here. -->
-            <dependency>
-                <groupId>eu.exeris.tooling</groupId>
-                <artifactId>exeris-processor</artifactId>
-                <version>${exeris.tooling.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>eu.exeris.tooling</groupId>
-                <artifactId>exeris-codegen-core</artifactId>
-                <version>${exeris.tooling.version}</version>
-            </dependency>
-
             <!-- Internal platform modules -->
-            <dependency>
-                <groupId>eu.exeris.platform</groupId>
-                <artifactId>exeris-studio-backend</artifactId>
-                <version>${project.version}</version>
-            </dependency>
             <dependency>
                 <groupId>eu.exeris.platform</groupId>
                 <artifactId>exeris-platform-lsp</artifactId>

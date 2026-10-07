@@ -4,7 +4,7 @@
 
 - **`mvn deploy` goes to GitHub Packages, not Maven Central.** Central needs signing, sources and
   javadoc jars and a readiness gate this repository does not have. The upstream half of the
-  sequencing is met — the kernel, SDK and tooling this repository builds on are on Central — so
+  sequencing is met — the kernel and SDK this repository builds on are on Central — so
   what remains is this repository's own gate (ROADMAP). "Add a `release` profile" is not a ready
   task until that gate is; when it is, copy `exeris-kernel`'s.
 - **A release is a tag and nothing else.** Pushing `v<x.y.z>` runs `.github/workflows/publish.yml`,

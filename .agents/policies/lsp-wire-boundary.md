@@ -1,12 +1,14 @@
 # Policy: LSP Is the Wire Boundary
 
-`exeris-platform-lsp` is the only way a client asks a model question. Studio frontend and IDE
-plugins do **not** call backend Java directly for domain shape; they speak JSON-RPC to the LSP.
+`exeris-platform-lsp` is the only way a client asks a model question. Every consumer — IDE plugins,
+`exeris-ai-bridge`, and the closed Studio product — speaks JSON-RPC to the LSP; none reads domain
+shape any other way.
 
 ## The rule
 
-- **Transports.** stdio for IDE plugins, WebSocket for the Studio frontend. Both speak the **same**
-  JSON-RPC method surface with the same wire shapes. Do not fork the method set per transport.
+- **Transports.** stdio for IDE plugins and `exeris-ai-bridge`, WebSocket for browser clients such
+  as Studio. Both speak the **same** JSON-RPC method surface with the same wire shapes. Do not fork
+  the method set per transport, and do not shape a method for one consumer.
 - **Standard methods follow the spec.** `initialize`, `shutdown`, `textDocument/*`, `workspace/*`
   carry no Exeris-specific divergence.
 - **Custom methods are namespaced under `exeris/`.** No unprefixed custom method, and no
@@ -23,12 +25,12 @@ plugins do **not** call backend Java directly for domain shape; they speak JSON-
   definitions before merging. `exeris/applyMutation` is **not** in that slice — ADR-025 bars the
   bridge from the write path, and a preview never writes. Wiring the bridge to the writer is a
   boundary change that needs its own ADR.
-- **The backend's HTTP surface is for workspace state and project management only**
+- **The wire projects `DomainMetadata`; it does not define a model of its own**
   ([`no-parallel-metamodel.md`](no-parallel-metamodel.md)).
 
-## The transport for Studio
+## The WebSocket transport
 
-ADR-084 (WebSocket Provider SPI) is the transport the Studio ↔ LSP connection is built on, and this
+ADR-084 (WebSocket Provider SPI) is the transport the WebSocket endpoint is built on, and this
 repository is its named consumer. It ships as `preview` at kernel 0.12, so anything bound to it pins
 a contract declared to move. A missing transport is not solved with a third-party servlet or
 WebSocket container.

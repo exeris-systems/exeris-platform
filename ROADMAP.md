@@ -4,17 +4,16 @@ type: roadmap
 visibility: public
 owning-repo: exeris-platform
 status: active
-last-verified: 2026-10-06
+last-verified: 2026-10-07
 ---
 
 # Exeris Platform — Roadmap to 1.0.0 GA
 
-The platform is the **user-facing Exeris experience**: Studio (Angular shell +
-embedded React editor), backend services, and the LSP server that powers
-bidirectional sync between Studio, IDE plugins, and on-disk `@ExerisDomain`
-sources. 1.0.0 GA means: **Studio replaces the IDE for design-time work** on
-real production projects, and the LSP is a stable interop surface third-party
-tools can target.
+This repository is the **open-source design-time protocol** of Exeris: the LSP server that keeps
+its clients — IDE plugins, `exeris-ai-bridge`, and Studio, Exeris' closed product — in sync with
+the on-disk `@ExerisDomain` sources. It holds only what must be open source; Studio, its workspace
+state, the CMS and accounts are not tracked here. 1.0.0 GA means: the `exeris/*` surface is a
+stable interop contract any client can target, and the standalone server is a released artifact.
 
 This file tracks scope per milestone. Items marked `[ ]` are open; `[x]` shipped.
 
@@ -22,17 +21,15 @@ This file tracks scope per milestone. Items marked `[ ]` are open; `[x]` shipped
 
 ## 0.1.0 — scaffold (shipped)
 
-- [x] Maven multi-module reactor (`bom`, `parent`, `studio-backend`, `platform-lsp`)
-- [x] Angular 21 frontend workspace (`exeris-studio-frontend`, separate npm build)
-- [x] Bootstrap stubs that compile (`main.ts`, `app.{component,config,routes}.ts`, `index.html`)
-- [x] Open-core boundary documented: this repo Apache-2.0; premium features in `exeris-platform-enterprise`
-- [x] **No parallel metamodel** — backend `package-info` documents the deliberate deletion of `EntityDefinition`/`PropertyDefinition`/`RelationDefinition`/`Project`. Studio operates exclusively on canonical `DomainMetadata` via LSP
+- [x] Maven multi-module reactor (`bom`, `parent`, `platform-lsp`)
+- [x] Open-core boundary documented: this repo is Apache-2.0 and holds only what must be open source
+- [x] **No parallel metamodel** — the server operates exclusively on the canonical `DomainMetadata`
 
 ## 0.2.0 — quality gates + LSP skeleton
 
 > Goal: green CI from a fresh clone, LSP server speaks the LSP base protocol.
 
-- [x] **CI** — `.github/workflows/build.yml` (`mvn install` + the frontend build in parallel jobs, every dependency resolved from public registries)
+- [x] **CI** — `.github/workflows/build.yml` (`mvn install`, every dependency resolved from public registries)
 - [x] **`exeris-platform-lsp` skeleton** — LSP4J server, JSON-RPC over stdio, `initialize`/`shutdown` handlers (Exeris-specific methods followed in 0.3.0)
 - [x] **Pre-publish POM metadata** — root POM declares `<url>`, `<organization>`, `<licenses>`, `<developers>`, `<scm>`, `<issueManagement>`. Required by Maven Central, and kept for it. `<distributionManagement>` named the Central Portal when this box was ticked; it now names GitHub Packages, because this repo's own Central release gate (see 1.0.0) is not met and `mvn deploy` was aimed at a repository that would have rejected it
 - [x] **Standalone LSP launcher** — `exeris-platform-lsp` attaches a shaded `-standalone` jar
@@ -52,13 +49,12 @@ This file tracks scope per milestone. Items marked `[ ]` are open; `[x]` shipped
 
 ## 0.3.0 — LSP custom Exeris methods
 
-> Goal: Studio + IDE plugins can query the canonical model and apply mutations through one wire surface.
+> Goal: clients can query the canonical model and apply mutations through one wire surface.
 
 > **Complete, and deliberately never tagged.** Everything below shipped, but no `v0.3.0` release
 > was cut: there was no consumer waiting on a 0.3.0 artifact, and a release exists to be consumed,
-> not to mark a checkbox. Its content ships inside the first real cut, `v0.4.0`. The trunk line
-> therefore went `0.3.0-SNAPSHOT` → `0.4.0-SNAPSHOT` without a tag in between — which is the one
-> case the cut procedure below does not otherwise cover.
+> not to mark a checkbox. Its content ships inside the first real cut, `v0.5.0`. The trunk line
+> therefore went `0.3.0-SNAPSHOT` → `0.4.0-SNAPSHOT` without a tag in between.
 
 - [x] `exeris/domains` — list the domain identities in the workspace
 - [x] `exeris/domainDescribe` — full read-only view of one domain, projected from `DomainMetadata`
@@ -67,49 +63,59 @@ This file tracks scope per milestone. Items marked `[ ]` are open; `[x]` shipped
 
 > The read surface shipped as the `exeris/domains` + `exeris/domainDescribe` + `exeris/actions`
 > trio rather than the single `exeris/entityModel` this milestone originally named. Two other
-> planned names never shipped: `exeris/diffPreview`'s intent is now tracked as pre-apply preview
-> at 0.8.0, and `exeris/listCapabilities` has neither a method nor a milestone — reopen it
+> planned names never shipped: `exeris/diffPreview`'s intent shipped as `exeris/previewMutation`
+> at 0.5.0, and `exeris/listCapabilities` has neither a method nor a milestone — reopen it
 > deliberately if Studio needs capability enumeration. Method names are authoritative in
 > `ExerisProtocolExtensions.java`, not in this file.
 
-## 0.4.0 — Studio frontend wired to LSP
+## 0.4.0 — WebSocket transport for browser clients
 
-> Goal: Studio shows entities and lets users do read-only inspection.
+> Goal: a browser client reaches the same `exeris/*` surface IDE plugins reach over stdio.
 
-- [x] WebSocket transport (Studio frontend) alongside stdio transport (IDE plugins) — moved here
-      from 0.3.0: 0.3.0's goal is the method surface, and the transport exists to serve the very
-      frontend this milestone wires up. Same JSON-RPC surface on both transports, never a fork
-- [x] Workspace tree view — the workspace's domains grouped by package, from `exeris/domains`.
-      Capabilities and sagas are not in the tree: no `exeris/*` method returns them (see the
-      `exeris/listCapabilities` note under 0.3.0), and the tree shows only what the wire carries
-- [x] Entity detail view (fields, actions, relationships) — read-only. Relationships come from an
-      optional `relationships[]` on `exeris/domainDescribe` (`{ name, targetEntity, type? }`); a
-      target links to its domain only when it names exactly one domain in `exeris/domains`.
-      The component is pinned by ADR-025's 2026-10-06 amendment (see `docs/adr/ADR-025.link.md`)
-- [x] Tailwind-based component library on the SDK's UI kit — npm package `@exeris/ui-kit`
-      (the `exeris-sdk-ui-kit` directory in `exeris-sdk`), wired through its CSS `@theme` entry
-      rather than a JS preset, which Tailwind v4 removed
-- [x] Routing for `/workspace/:path/entity/:name`
-- [x] Studio on Angular 22, the scaffold `@exeris/codegen-ts` emits. Screens over the platform's own
-      `Workspace` domain are generated from `exeris-studio-backend`'s metadata corpus and committed
-      under `src/app/generated`; CI regenerates them and fails on drift
+> **Complete, and deliberately never tagged**, for the reason 0.3.0 was not: no consumer waited on
+> a 0.4.0 artifact. The first consumer is `exeris-ai-bridge`, whose mutation preview needs
+> `exeris/previewMutation`, so the first cut is `v0.5.0` and carries 0.3.0 and 0.4.0 with it. The
+> trunk line moves from `0.4.0-SNAPSHOT` to `0.5.0-SNAPSHOT` without a tag in between.
 
-## 0.5.0 — Studio editing
+- [x] WebSocket transport alongside stdio, on the kernel's WebSocket SPI (ADR-084): one language
+      server per connection, the same JSON-RPC surface on both transports, never a fork
+      (`TransportParityIT`)
+- [x] Launcher flags `--stdio | --websocket`, `--host`, `--port`, `--allowed-origin`, and
+      `--allow-remote`, which a non-loopback bind requires while `exeris/applyMutation` is
+      unauthenticated
+- [x] Write-back serialised per file across sessions, so a second op on the same file is judged
+      against the bytes the first one wrote
+- [x] Optional `relationships[]` on `exeris/domainDescribe` (`{ name, targetEntity, type? }`),
+      pinned by ADR-025's 2026-10-06 amendment (see `docs/adr/ADR-025.link.md`)
+- [x] The kernel and SDK resolve from Maven Central; the build needs no sibling checkout and no
+      credential
 
-> Goal: Studio applies safe mutations and Studio-changes round-trip back to disk.
+## 0.5.0 — the mutation surface for live clients
 
-- [ ] Inline edit forms for fields, actions, relationships
-- [ ] Mutation-builder UI (translates user intent → `MutationOp`)
-- [ ] Optimistic updates with conflict resolution UI
-- [ ] Undo/redo at workspace scope
+> Goal: a client that edits from what it just read — Studio, an agent through `exeris-ai-bridge`,
+> an IDE plugin — can apply and preview mutations over the LSP without a codegen baseline, and
+> safely.
 
-## 0.6.0 — embedded React editor for code
+> Studio's editing experience — forms, optimistic updates, conflict resolution, undo/redo — is
+> built on this surface inside Studio, Exeris' closed product, and is tracked there; this
+> repository ships the server side every client needs.
 
-> Goal: Studio supports code-level edits where the model is too coarse (e.g. action body).
+- [x] `exeris/applyMutation` judges a request that carries a `concurrencyToken` and no
+      `baselineJson` against the source the token names: the baseline is derived from those bytes
+      under the per-file lock, a moved source is `STALE_DIGEST`, and build output is never read as
+      a baseline (ADR-042's 2026-10-07 amendment)
+- [x] `exeris/domainDescribe` carries the optional `sourceDigest` a client passes as that token
+- [x] `exeris/previewMutation` — the read-only sibling of `exeris/applyMutation`: the same request,
+      computed against the source as it is, answered with the `MutationResult` and a unified diff
+      relative to the workspace root, and written nowhere. It is how `exeris-ai-bridge` reaches the
+      canonical writer without writing (its `lsp-preview_mutation`; ADR-025's 2026-10-07 amendment)
 
-- [ ] React-based code editor (Monaco) embedded in Angular shell
-- [ ] Per-element (action body, custom validator) edit panes
-- [ ] LSP sync — code edits round-trip the same way as model edits
+## 0.6.0 — code-level round-trip
+
+> Goal: edits below the model's granularity (an action body, a custom validator) round-trip through
+> the server the way model edits do.
+
+- [ ] LSP sync for code-level edits, through the SDK writer, idempotent like model edits
 
 ## 0.7.0 — IDE plugin support
 
@@ -120,44 +126,43 @@ This file tracks scope per milestone. Items marked `[ ]` are open; `[x]` shipped
 - [ ] Plugins surface the shipped `exeris/*` read methods (`exeris/domains`, `exeris/domainDescribe`, `exeris/actions`)
 - [ ] Hot-reload of LSP server during plugin development
 
-## 0.8.0 — multi-file change preview, undo/redo
+## 0.8.0 — multi-file transactions
 
-> Goal: design-time refactors (rename entity, split aggregate) work safely across many files.
+> Goal: design-time refactors (rename entity, split aggregate) apply safely across many files.
 
 - [ ] Multi-file mutation transactions
-- [ ] Pre-apply preview (Studio + IDE plugins)
-- [ ] Workspace-scoped undo/redo
-- [ ] Conflict UI when concurrent mutations collide
+- [ ] Preview of a multi-file transaction; a single op is previewed by `exeris/previewMutation`
+      since 0.5.0
+- [ ] A verdict that names the files of a transaction that collided with concurrent edits
 
-## 0.9.0 — multi-tenant + collaboration polish
+## 0.9.0 — clients beyond the local machine
 
-> Goal: enterprise-feature parity — but the OSS surface should still be usable for single-team workflows.
+> Goal: a client that is not on the server's machine — a hosted client among them — connects safely.
 
-- [ ] Workspace state persistence (PostgreSQL backing for studio-backend)
-- [ ] WebSocket reconnection + state sync
-- [ ] (enterprise: multi-tenant org management, design-time RBAC, audit dashboards — split to `exeris-platform-enterprise`)
+- [ ] Transport authentication seam: an SPI on the WebSocket handshake, with a single-user default.
+      Identity-provider and authorization implementations live with the clients that need them
+- [ ] WebSocket reconnection and session resumption
 
-## 1.0.0 GA — production Studio + stable LSP
+## 1.0.0 GA — stable protocol, released server
 
-> Goal: budgetHQ team works exclusively in Studio for design-time changes; LSP is stable enough for third-party plugins to target.
+> Goal: the `exeris/*` surface is stable enough for third-party clients to target, and the server
+> ships from Maven Central.
 
 - [ ] LSP custom-method API frozen (`exeris/*` methods are semver-stable)
-- [ ] Studio UX polish — performance, accessibility, keyboard navigation
-- [ ] `MIGRATION-0.x-to-1.0.md` for plugin authors
-- [ ] Maven Central release (studio-backend + platform-lsp) — **0.6.0 at the earliest**. The
-      upstream half of the gate is met: `exeris-kernel`, `exeris-sdk` and `exeris-tooling` are on
-      Central and this build resolves them from there. What remains is this repo's own: signing,
-      sources/javadoc jars and the `-P release` profile copied from `exeris-kernel`. Tag-triggered
-      when it lands, and disabled until then. It rides the same tag trigger as the Packages deploy — one cut, both
-      registries. GitHub Packages carries releases in the meantime (0.2.0)
-- [ ] npm registry release for `@exeris/studio-frontend` (and Studio Docker image)
+- [ ] `MIGRATION-0.x-to-1.0.md` for client authors
+- [ ] Maven Central release of `exeris-platform-lsp` — **0.6.0 at the earliest**. The upstream half
+      of the gate is met: `exeris-kernel` and `exeris-sdk` are on Central and this build resolves
+      them from there. What remains is this repo's own: signing, sources/javadoc jars and the
+      `-P release` profile copied from `exeris-kernel`. Tag-triggered when it lands, and disabled
+      until then. It rides the same tag trigger as the Packages deploy — one cut, both registries.
+      GitHub Packages carries releases in the meantime (0.2.0)
 
 ---
 
 ## Versioning policy
 
-- **0.x** — LSP custom methods may change in any release; plugin authors track main
-- **1.x** — `exeris/*` LSP methods semver-stable; Studio internal APIs may still evolve
+- **0.x** — LSP custom methods may change in any release; client authors track main
+- **1.x** — `exeris/*` LSP methods semver-stable
 
 ### Cutting a release
 
@@ -167,13 +172,12 @@ The reactor version names the release the current line will *become*, so trunk s
 1. Finish the milestone's scope and tick its boxes here.
    A completed milestone does **not** have to be tagged — 0.3.0 was not. Tag when something
    downstream needs the artifact; otherwise let the content ride the next cut and move the trunk
-   line straight on, as `0.3.0-SNAPSHOT` → `0.4.0-SNAPSHOT` did.
+   line straight on, as 0.3.0 and 0.4.0 did.
 2. Push the tag: `git tag v<x.y.z> && git push origin v<x.y.z>`. `publish.yml` refuses a tag that
    does not match the trunk's line, that is not on `main`, or whose `LauncherIT` fails — so a
    mistyped tag costs nothing.
 3. Enter the next line: `mvn versions:set -DnewVersion=<next>-SNAPSHOT -DgenerateBackupPoms=false`,
-   bump `exeris-studio-frontend/package.json` to match, commit as
-   `chore: enter <next> development`.
+   commit as `chore: enter <next> development`.
 
 `workflow_dispatch` on `publish.yml` runs the whole path without publishing; use it before a cut
 rather than discovering a broken release path with a version already spent.

@@ -9,7 +9,7 @@ description: Pick the right decision-document shape BEFORE drafting — Research
 Three decision shapes exist in `exeris-docs/templates/` and they are NOT interchangeable. People reach for "ADR" by reflex even when the decision isn't made yet. This skill picks the right shape first, so the artefact is correct and lands in the right place — and so ADR numbers aren't burned on open questions. Owns the "is this a new ADR or just a README edit?" triage together with the `exeris-platform-docs-adr` agent.
 
 ## When to Use
-- Any request to "write an ADR" / "document this decision" / "draft an RFC" / "write a research note" touching the platform (Studio / LSP / studio-backend / open-core boundary).
+- Any request to "write an ADR" / "document this decision" / "draft an RFC" / "write a research note" touching the platform (LSP server / `exeris/*` protocol / open-core boundary).
 - Before reserving an ADR number — confirm the question is actually a decision-already-made.
 - When a change to the LSP method surface, the open-core boundary, or the idempotent-write-back contract is proposed (these trigger ADRs per `.agents/policies/adr-triggers.md`).
 

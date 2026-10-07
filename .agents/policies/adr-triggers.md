@@ -12,14 +12,15 @@ ADR, do not just edit code.**
   ([`open-core-boundary.md`](open-core-boundary.md)).
 - A change to the idempotent write-back contract
   ([`idempotent-writeback.md`](idempotent-writeback.md)).
-- Reintroducing any deliberately deleted metamodel type
+- Introducing a domain-shaped type beside `DomainMetadata`
   ([`no-parallel-metamodel.md`](no-parallel-metamodel.md)).
-- A third UI framework, or a replacement for Angular, React or the UI kit
-  ([`frontend-stack.md`](frontend-stack.md)).
+- A method surface that differs between transports
+  ([`lsp-wire-boundary.md`](lsp-wire-boundary.md)).
 
 ## How
 
-- **An amendment is not a new ADR.** A change to the read-only `exeris/*` trio amends ADR-025, as
+- **An amendment is not a new ADR.** A change to the read-only `exeris/*` trio or to
+  `exeris/previewMutation` amends ADR-025, as
   `docs/adr/ADR-025.link.md` prescribes.
 - **One ecosystem-wide number space.** ADRs are indexed in `exeris-docs/adr-index.md`. Reserve the
   number there first, then write the content. Platform-owned ADRs live in `docs/adr/`; a cross-repo
