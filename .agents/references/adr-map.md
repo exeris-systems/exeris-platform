@@ -9,7 +9,7 @@ the ADR wherever the two differ.
 | ADR-006 Spring-Free Kernel Boundary | Not directly — no kernel runtime here — but the same rule protects `DomainMetadata`: no implementation detail smuggled past a contract surface. |
 | ADR-020 Visibility taxonomy | Documenting a feature with a closed counterpart: `public` or `enterprise-private` ([policy](../policies/open-core-boundary.md)). |
 | ADR-024 Capability Composition Model | Anything touching composition: this repository is the deploy-time control plane and holds no composition runtime ([policy](../policies/composition-runtime-placement.md)). |
-| ADR-025 AI Agent Bridge | Any change to `exeris/domains`, `exeris/domainDescribe` or `exeris/actions` — an amendment to ADR-025, not a new ADR. The bridge never reaches `exeris/applyMutation`. |
+| ADR-025 AI Agent Bridge | Any change to `exeris/domains`, `exeris/domainDescribe`, `exeris/actions` or `exeris/previewMutation` — an amendment to ADR-025, not a new ADR. The bridge never reaches `exeris/applyMutation`. |
 | ADR-037 `exeris-sdk-source-model-io` | The parser/writer coordinate the LSP depends on; AST records stay in `exeris-sdk-source-model`. |
 | ADR-042 Bidirectional mutation surface | The write-back path: `exeris/applyMutation`'s wire shape, the `MutationOp` vocabulary, conflict detection and baseline-trust gating. Realised here. |
 | ADR-084 WebSocket Provider SPI | The LSP's WebSocket transport, which browser clients such as Studio connect to. This repository is its named consumer; it ships `preview` at kernel 0.12. |
