@@ -6,10 +6,14 @@ import static org.junit.jupiter.api.Assumptions.assumeTrue;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonParser;
 import eu.exeris.platform.lsp.ExerisProtocolExtensions.ApplyMutationParams;
+import eu.exeris.platform.lsp.ExerisProtocolExtensions.DomainDescribeParams;
+import eu.exeris.platform.lsp.ExerisProtocolExtensions.DomainDescription;
+import eu.exeris.platform.lsp.ExerisProtocolExtensions.MutationPreview;
 import eu.exeris.sdk.sourcemodel.ast.DomainMetadata;
 import eu.exeris.sdk.sourcemodel.ast.FieldMetadata;
 import eu.exeris.sdk.sourcemodel.io.SourceModelReader;
 import eu.exeris.sdk.sourcemodel.mutation.MutationOp;
+import eu.exeris.sdk.sourcemodel.mutation.MutationResult;
 import eu.exeris.sdk.sourcemodel.mutation.SchemaVersion;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -276,7 +280,162 @@ class ApplyMutationTest {
         assertThat(Files.readString(order)).contains("private String note;", "private String memo;");
     }
 
-    // ---- helpers ---------------------------------------------------------
+    @Test
+    @Timeout(10)
+    @SuppressWarnings("deprecation")
+    void tokenAnchoredBaselineAppliesAndConvergesWhenReappliedAgainstTheNewDigest(@TempDir Path workspace)
+            throws Exception {
+        Path order = workspace.resolve("Order.java");
+        Files.writeString(order, ORDER);
+        ExerisLanguageServer server = initServer(workspace);
+
+        FieldMetadata note = new SourceModelReader().read(ORDER_WITH_NOTE)
+                .orElseThrow().findField("note").orElseThrow();
+        MutationOp op = new MutationOp.AddField("/entities/Order/fields/note", note);
+
+        // No baselineJson: the source matching the token is the baseline the op was computed against.
+        JsonElement first = server.applyMutation(new ApplyMutationParams("com.example.shop.Order",
+                opElement(op), null, digestOf(server))).get(5, TimeUnit.SECONDS);
+        assertThat(outcome(first)).isEqualTo("SUCCESS");
+        String afterFirst = Files.readString(order);
+        assertThat(afterFirst).contains("note");
+
+        // The same op against the digest the first write produced: convergent, byte-identical.
+        JsonElement second = server.applyMutation(new ApplyMutationParams("com.example.shop.Order",
+                opElement(op), null, digestOf(server))).get(5, TimeUnit.SECONDS);
+        assertThat(outcome(second)).isEqualTo("SUCCESS");
+        assertThat(Files.readString(order)).isEqualTo(afterFirst);
+    }
+
+    @Test
+    @Timeout(10)
+    @SuppressWarnings("deprecation")
+    void inverseOpAppliedAfterASuccessfulWriteRestoresTheSource(@TempDir Path workspace) throws Exception {
+        Path order = workspace.resolve("Order.java");
+        Files.writeString(order, ORDER);
+        ExerisLanguageServer server = initServer(workspace);
+
+        MutationOp forward = new MutationOp.ChangeFieldType("/entities/Order/fields/code", "Long");
+        assertThat(outcome(server.applyMutation(new ApplyMutationParams("com.example.shop.Order",
+                opElement(forward), null, digestOf(server))).get(5, TimeUnit.SECONDS))).isEqualTo("SUCCESS");
+        assertThat(Files.readString(order)).contains("private Long code;");
+
+        // The undo of a Studio write is judged against that write, not against an older baseline.
+        MutationOp inverse = new MutationOp.ChangeFieldType("/entities/Order/fields/code", "String");
+        assertThat(outcome(server.applyMutation(new ApplyMutationParams("com.example.shop.Order",
+                opElement(inverse), null, digestOf(server))).get(5, TimeUnit.SECONDS))).isEqualTo("SUCCESS");
+        assertThat(Files.readString(order)).isEqualTo(ORDER);
+    }
+
+    @Test
+    @Timeout(10)
+    @SuppressWarnings("deprecation")
+    void staleTokenWithoutBaselineIsRejectedAndLeavesSourceUntouched(@TempDir Path workspace) throws Exception {
+        Path order = workspace.resolve("Order.java");
+        Files.writeString(order, ORDER);
+        ExerisLanguageServer server = initServer(workspace);
+        String viewed = digestOf(server);
+
+        // The source moves under Studio (an IDE edit) after Studio computed its op.
+        Files.writeString(order, ORDER_CODE_INT);
+
+        MutationOp op = new MutationOp.ChangeFieldType("/entities/Order/fields/code", "Long");
+        JsonElement result = server.applyMutation(new ApplyMutationParams("com.example.shop.Order",
+                opElement(op), null, viewed)).get(5, TimeUnit.SECONDS);
+
+        assertThat(outcome(result)).isEqualTo("NO_BASELINE");
+        assertThat(result.getAsJsonObject().get("cause").getAsString()).isEqualTo("STALE_DIGEST");
+        assertThat(Files.readString(order)).isEqualTo(ORDER_CODE_INT);
+    }
+
+    @Test
+    @Timeout(10)
+    @SuppressWarnings("deprecation")
+    void buildOutputIsNeverReadAsABaseline(@TempDir Path workspace) throws Exception {
+        Path order = workspace.resolve("Order.java");
+        Files.writeString(order, ORDER);
+        Path metadataDir = workspace.resolve("target/classes/exeris-metadata");
+        Files.createDirectories(metadataDir);
+        Files.writeString(metadataDir.resolve("Order.json"), trustworthyBaselineFor(ORDER));
+        ExerisLanguageServer server = initServer(workspace);
+
+        MutationOp op = new MutationOp.RemoveField("/entities/Order/fields/code");
+        JsonElement result = server.applyMutation(new ApplyMutationParams("com.example.shop.Order",
+                opElement(op), null, null)).get(5, TimeUnit.SECONDS);
+
+        assertThat(outcome(result)).isEqualTo("NO_BASELINE");
+        assertThat(Files.readString(order)).isEqualTo(ORDER);
+    }
+
+    @Test
+    @Timeout(10)
+    @SuppressWarnings("deprecation")
+    void matchingConcurrencyTokenSucceeds(@TempDir Path workspace) throws Exception {
+        Path order = workspace.resolve("Order.java");
+        Files.writeString(order, ORDER);
+
+        ExerisLanguageServer server = initServer(workspace);
+        DomainDescription description = server.domainDescribe(
+                new DomainDescribeParams("com.example.shop.Order"))
+                .get(5, TimeUnit.SECONDS);
+
+        assertThat(description.sourceDigest()).isNotNull();
+
+        FieldMetadata note = new SourceModelReader().read(ORDER_WITH_NOTE)
+                .orElseThrow().findField("note").orElseThrow();
+        MutationOp op = new MutationOp.AddField("/entities/Order/fields/note", note);
+
+        JsonElement result = server.applyMutation(
+                new ApplyMutationParams("com.example.shop.Order", opElement(op),
+                        trustworthyBaselineFor(ORDER), description.sourceDigest()))
+                .get(5, TimeUnit.SECONDS);
+
+        assertThat(outcome(result)).isEqualTo("SUCCESS");
+        assertThat(Files.readString(order)).contains("note");
+    }
+
+    @Test
+    void testAllNineMutationOpsDeserializeCorrectly() throws Exception {
+        MAPPER.readValue("""
+            {"op":"addField","path":"/entities/Order/fields/note","field":{"name":"note","type":"String"}}
+            """, MutationOp.class);
+        MAPPER.readValue("""
+            {"op":"removeField","path":"/entities/Order/fields/note"}
+            """, MutationOp.class);
+        MAPPER.readValue("""
+            {"op":"renameField","path":"/entities/Order/fields/note","newName":"memo"}
+            """, MutationOp.class);
+        MAPPER.readValue("""
+            {"op":"changeFieldType","path":"/entities/Order/fields/note","newType":"String"}
+            """, MutationOp.class);
+        MAPPER.readValue("""
+            {"op":"addRelationship","path":"/entities/Order/relationships/customer","relationship":{"name":"customer","targetEntity":"Customer"}}
+            """, MutationOp.class);
+        MAPPER.readValue("""
+            {"op":"removeRelationship","path":"/entities/Order/relationships/customer"}
+            """, MutationOp.class);
+        MAPPER.readValue("""
+            {"op":"changeRelationshipCardinality","path":"/entities/Order/relationships/customer","newCardinality":"MANY_TO_ONE"}
+            """, MutationOp.class);
+        MAPPER.readValue("""
+            {"op":"addAction","path":"/entities/Order/actions/cancel","action":{"name":"cancel","httpMethod":"POST"}}
+            """, MutationOp.class);
+        MAPPER.readValue("""
+            {"op":"removeAction","path":"/entities/Order/actions/cancel"}
+            """, MutationOp.class);
+    }
+
+    @Test
+    void testMutationResultConflictAndNoBaselineSerialization() throws Exception {
+        MutationResult.Conflict conflict = new MutationResult.Conflict("/path", "oldVal", "currVal", "intendedVal");
+        String json = MAPPER.writeValueAsString(conflict);
+        assertThat(json).contains("\"outcome\":\"CONFLICT\"", "\"path\":\"/path\"", "\"baselineValue\":\"oldVal\"", "\"currentValue\":\"currVal\"", "\"intendedValue\":\"intendedVal\"");
+
+        MutationResult.NoBaseline noBaseline = new MutationResult.NoBaseline(MutationResult.NoBaselineCause.MISSING_BASELINE, "no baseline found");
+        String nbJson = MAPPER.writeValueAsString(noBaseline);
+        assertThat(nbJson).contains("\"outcome\":\"NO_BASELINE\"", "\"cause\":\"MISSING_BASELINE\"", "\"detail\":\"no baseline found\"");
+    }
+
 
     @SuppressWarnings("deprecation")
     private static ExerisLanguageServer initServer(Path workspace) throws Exception {
@@ -298,6 +457,83 @@ class ApplyMutationTest {
         ObjectNode node = (ObjectNode) MAPPER.valueToTree(model);
         node.put("schemaVersion", SchemaVersion.CURRENT);
         return MAPPER.writeValueAsString(node);
+    }
+
+    @Test
+    @Timeout(10)
+    @SuppressWarnings("deprecation")
+    void previewReturnsTheDiffTheApplyWouldWriteAndWritesNothing(@TempDir Path workspace) throws Exception {
+        Path order = workspace.resolve("com/example/shop/Order.java");
+        Files.createDirectories(order.getParent());
+        Files.writeString(order, ORDER);
+        ExerisLanguageServer server = initServer(workspace);
+
+        FieldMetadata note = new SourceModelReader().read(ORDER_WITH_NOTE)
+                .orElseThrow().findField("note").orElseThrow();
+        ApplyMutationParams params = new ApplyMutationParams("com.example.shop.Order",
+                opElement(new MutationOp.AddField("/entities/Order/fields/note", note)), null, digestOf(server));
+
+        MutationPreview first = server.previewMutation(params).get(5, TimeUnit.SECONDS);
+        MutationPreview second = server.previewMutation(params).get(5, TimeUnit.SECONDS);
+
+        assertThat(outcome(first.result())).isEqualTo("SUCCESS");
+        assertThat(first.sourcePath()).isEqualTo(order.toUri().toString());
+        assertThat(first.diff())
+                .startsWith("--- a/com/example/shop/Order.java\n+++ b/com/example/shop/Order.java\n")
+                .contains("+    private String note;");
+        assertThat(second).isEqualTo(first);
+        assertThat(Files.readString(order)).isEqualTo(ORDER);
+
+        // The apply of the same request writes exactly what the preview showed.
+        assertThat(outcome(server.applyMutation(params).get(5, TimeUnit.SECONDS))).isEqualTo("SUCCESS");
+        assertThat(UnifiedDiff.of("com/example/shop/Order.java", ORDER, Files.readString(order)))
+                .isEqualTo(first.diff());
+    }
+
+    @Test
+    @Timeout(10)
+    @SuppressWarnings("deprecation")
+    void previewOfAnAlreadyAppliedOpIsAnEmptyDiff(@TempDir Path workspace) throws Exception {
+        Path order = workspace.resolve("Order.java");
+        Files.writeString(order, ORDER_WITH_NOTE);
+        ExerisLanguageServer server = initServer(workspace);
+
+        FieldMetadata note = new SourceModelReader().read(ORDER_WITH_NOTE)
+                .orElseThrow().findField("note").orElseThrow();
+        MutationPreview preview = server.previewMutation(new ApplyMutationParams("com.example.shop.Order",
+                opElement(new MutationOp.AddField("/entities/Order/fields/note", note)), null, digestOf(server)))
+                .get(5, TimeUnit.SECONDS);
+
+        assertThat(outcome(preview.result())).isEqualTo("SUCCESS");
+        assertThat(preview.diff()).isEmpty();
+    }
+
+    @Test
+    @Timeout(10)
+    @SuppressWarnings("deprecation")
+    void previewReportsARefusalWithAnEmptyDiff(@TempDir Path workspace) throws Exception {
+        Path order = workspace.resolve("Order.java");
+        Files.writeString(order, ORDER);
+        ExerisLanguageServer server = initServer(workspace);
+        MutationOp op = new MutationOp.RemoveField("/entities/Order/fields/code");
+
+        MutationPreview stale = server.previewMutation(new ApplyMutationParams("com.example.shop.Order",
+                opElement(op), null, "not-the-digest")).get(5, TimeUnit.SECONDS);
+        MutationPreview unknown = server.previewMutation(new ApplyMutationParams("com.example.Missing",
+                opElement(op), null, null)).get(5, TimeUnit.SECONDS);
+
+        assertThat(outcome(stale.result())).isEqualTo("NO_BASELINE");
+        assertThat(stale.diff()).isEmpty();
+        assertThat(outcome(unknown.result())).isEqualTo("VALIDATION_ERROR");
+        assertThat(unknown.sourcePath()).isNull();
+        assertThat(Files.readString(order)).isEqualTo(ORDER);
+    }
+
+    private static String digestOf(ExerisLanguageServer server) throws Exception {
+        String digest = server.domainDescribe(new DomainDescribeParams("com.example.shop.Order"))
+                .get(5, TimeUnit.SECONDS).sourceDigest();
+        assertThat(digest).isNotNull();
+        return digest;
     }
 
     private static String outcome(JsonElement result) {

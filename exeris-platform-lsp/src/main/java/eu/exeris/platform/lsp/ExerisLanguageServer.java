@@ -62,10 +62,16 @@ public final class ExerisLanguageServer
 
     private final IntConsumer exitAction;
 
+    /** A server whose {@code exit} notification ends the JVM, as a launched server must. */
     public ExerisLanguageServer() {
         this(System::exit);
     }
 
+    /**
+     * A server that hands its exit code to {@code exitAction} instead of ending the JVM.
+     *
+     * @param exitAction receives the code {@code exit} would end the process with
+     */
     public ExerisLanguageServer(IntConsumer exitAction) {
         this.exitAction = Objects.requireNonNull(exitAction, "exitAction");
         // Both services share one invalidation hook: a save or an out-of-band disk change drops
@@ -148,6 +154,13 @@ public final class ExerisLanguageServer
         // index when (and only when) bytes changed.
         return CompletableFuture.completedFuture(
                 mutationService.apply(requireIndex(), params, this::invalidateIndex));
+    }
+
+    @Override
+    public CompletableFuture<MutationPreview> previewMutation(ApplyMutationParams params) {
+        // Read-only: computes what applyMutation would write and returns it; touches neither the
+        // source nor the index.
+        return CompletableFuture.completedFuture(mutationService.preview(requireIndex(), params));
     }
 
     private WorkspaceIndex requireIndex() {

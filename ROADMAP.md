@@ -4,7 +4,7 @@ type: roadmap
 visibility: public
 owning-repo: exeris-platform
 status: active
-last-verified: 2026-10-06
+last-verified: 2026-10-07
 ---
 
 # Exeris Platform — Roadmap to 1.0.0 GA
@@ -56,9 +56,8 @@ This file tracks scope per milestone. Items marked `[ ]` are open; `[x]` shipped
 
 > **Complete, and deliberately never tagged.** Everything below shipped, but no `v0.3.0` release
 > was cut: there was no consumer waiting on a 0.3.0 artifact, and a release exists to be consumed,
-> not to mark a checkbox. Its content ships inside the first real cut, `v0.4.0`. The trunk line
-> therefore went `0.3.0-SNAPSHOT` → `0.4.0-SNAPSHOT` without a tag in between — which is the one
-> case the cut procedure below does not otherwise cover.
+> not to mark a checkbox. Its content ships inside the first real cut, `v0.5.0`. The trunk line
+> therefore went `0.3.0-SNAPSHOT` → `0.4.0-SNAPSHOT` without a tag in between.
 
 - [x] `exeris/domains` — list the domain identities in the workspace
 - [x] `exeris/domainDescribe` — full read-only view of one domain, projected from `DomainMetadata`
@@ -67,14 +66,19 @@ This file tracks scope per milestone. Items marked `[ ]` are open; `[x]` shipped
 
 > The read surface shipped as the `exeris/domains` + `exeris/domainDescribe` + `exeris/actions`
 > trio rather than the single `exeris/entityModel` this milestone originally named. Two other
-> planned names never shipped: `exeris/diffPreview`'s intent is now tracked as pre-apply preview
-> at 0.8.0, and `exeris/listCapabilities` has neither a method nor a milestone — reopen it
+> planned names never shipped: `exeris/diffPreview`'s intent shipped as `exeris/previewMutation`
+> at 0.5.0, and `exeris/listCapabilities` has neither a method nor a milestone — reopen it
 > deliberately if Studio needs capability enumeration. Method names are authoritative in
 > `ExerisProtocolExtensions.java`, not in this file.
 
 ## 0.4.0 — Studio frontend wired to LSP
 
 > Goal: Studio shows entities and lets users do read-only inspection.
+
+> **Complete, and deliberately never tagged**, for the reason 0.3.0 was not: no consumer waited on
+> a 0.4.0 artifact. The first consumer is `exeris-ai-bridge`, whose mutation preview needs
+> `exeris/previewMutation`, so the first cut is `v0.5.0` and carries 0.3.0 and 0.4.0 with it. The
+> trunk line moves from `0.4.0-SNAPSHOT` to `0.5.0-SNAPSHOT` without a tag in between.
 
 - [x] WebSocket transport (Studio frontend) alongside stdio transport (IDE plugins) — moved here
       from 0.3.0: 0.3.0's goal is the method surface, and the transport exists to serve the very
@@ -94,14 +98,25 @@ This file tracks scope per milestone. Items marked `[ ]` are open; `[x]` shipped
       `Workspace` domain are generated from `exeris-studio-backend`'s metadata corpus and committed
       under `src/app/generated`; CI regenerates them and fails on drift
 
-## 0.5.0 — Studio editing
+## 0.5.0 — the mutation surface for live clients
 
-> Goal: Studio applies safe mutations and Studio-changes round-trip back to disk.
+> Goal: a client that edits from what it just read — Studio, an agent through `exeris-ai-bridge`,
+> an IDE plugin — can apply and preview mutations over the LSP without a codegen baseline, and
+> safely.
 
-- [ ] Inline edit forms for fields, actions, relationships
-- [ ] Mutation-builder UI (translates user intent → `MutationOp`)
-- [ ] Optimistic updates with conflict resolution UI
-- [ ] Undo/redo at workspace scope
+> Studio's editing experience — forms, optimistic updates, conflict resolution, undo/redo — is
+> built on this surface inside Studio, Exeris' closed product, and is tracked there; this
+> repository ships the server side every client needs.
+
+- [x] `exeris/applyMutation` judges a request that carries a `concurrencyToken` and no
+      `baselineJson` against the source the token names: the baseline is derived from those bytes
+      under the per-file lock, a moved source is `STALE_DIGEST`, and build output is never read as
+      a baseline (ADR-042's 2026-10-07 amendment)
+- [x] `exeris/domainDescribe` carries the optional `sourceDigest` a client passes as that token
+- [x] `exeris/previewMutation` — the read-only sibling of `exeris/applyMutation`: the same request,
+      computed against the source as it is, answered with the `MutationResult` and a unified diff
+      relative to the workspace root, and written nowhere. It is how `exeris-ai-bridge` reaches the
+      canonical writer without writing (its `lsp-preview_mutation`; ADR-025's 2026-10-07 amendment)
 
 ## 0.6.0 — embedded React editor for code
 
@@ -125,7 +140,8 @@ This file tracks scope per milestone. Items marked `[ ]` are open; `[x]` shipped
 > Goal: design-time refactors (rename entity, split aggregate) work safely across many files.
 
 - [ ] Multi-file mutation transactions
-- [ ] Pre-apply preview (Studio + IDE plugins)
+- [ ] Pre-apply preview of a multi-file transaction (Studio + IDE plugins); a single op is
+      previewed by `exeris/previewMutation` since 0.5.0
 - [ ] Workspace-scoped undo/redo
 - [ ] Conflict UI when concurrent mutations collide
 
@@ -167,7 +183,7 @@ The reactor version names the release the current line will *become*, so trunk s
 1. Finish the milestone's scope and tick its boxes here.
    A completed milestone does **not** have to be tagged — 0.3.0 was not. Tag when something
    downstream needs the artifact; otherwise let the content ride the next cut and move the trunk
-   line straight on, as `0.3.0-SNAPSHOT` → `0.4.0-SNAPSHOT` did.
+   line straight on, as 0.3.0 and 0.4.0 did.
 2. Push the tag: `git tag v<x.y.z> && git push origin v<x.y.z>`. `publish.yml` refuses a tag that
    does not match the trunk's line, that is not on `main`, or whose `LauncherIT` fails — so a
    mistyped tag costs nothing.
