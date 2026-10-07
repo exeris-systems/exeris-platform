@@ -109,3 +109,14 @@ jobs:
       claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
       exeris_bot_app_id: ${{ secrets.EXERIS_BOT_APP_ID }}
       exeris_bot_private_key: ${{ secrets.EXERIS_BOT_PRIVATE_KEY }}
+  # ADR-085 §F.21, the Java half: doclint and Checkstyle over doc comments, from the organisation's
+  # ruleset and pinned engine. Neither module is a published API surface — the LSP server and the
+  # backend are an application and its tooling — so both sit in `diff-modules`:
+  # javadoc-conventions.md rule 11 holds the files a pull request changes, with no backfill mandate.
+  # That half runs `javadoc` and Checkstyle directly over the changed files, so it needs no pom
+  # change and no `javadoc-gate` profile. `exeris-platform-bom` and `exeris-platform-parent` are
+  # pom-packaged and have nothing to document.
+  javadoc:
+    uses: exeris-systems/.github/.github/workflows/javadoc-gate.yml@main
+    with:
+      diff-modules: exeris-platform-lsp,exeris-studio-backend
