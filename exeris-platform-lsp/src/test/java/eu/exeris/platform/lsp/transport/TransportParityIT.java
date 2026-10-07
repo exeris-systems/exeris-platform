@@ -174,15 +174,28 @@ public class TransportParityIT {
         return init;
     }
 
-    /** initialize + the read trio, as raw JSON-RPC requests both transports receive verbatim. */
+    /**
+     * initialize, the read trio and a preview, as raw JSON-RPC requests both transports receive
+     * verbatim. The preview writes nothing, so it leaves the workspace as the other transport sees it.
+     */
     private static List<JsonObject> readOnlyScript(Path workspace) {
         JsonObject describe = new JsonObject();
         describe.addProperty("qualifiedName", "com.example.shop.Order");
+        JsonObject op = new JsonObject();
+        op.addProperty("op", "addAction");
+        op.addProperty("path", "/entities/Order/actions/cancel");
+        JsonObject action = new JsonObject();
+        action.addProperty("name", "cancel");
+        op.add("action", action);
+        JsonObject preview = new JsonObject();
+        preview.addProperty("qualifiedName", "com.example.shop.Order");
+        preview.add("op", op);
         return List.of(
                 request(1, "initialize", initializeParams(workspace)),
                 request(2, "exeris/domains", new JsonObject()),
                 request(3, "exeris/domainDescribe", describe),
-                request(4, "exeris/actions", new JsonObject()));
+                request(4, "exeris/actions", new JsonObject()),
+                request(5, "exeris/previewMutation", preview));
     }
 
     private static JsonObject request(int id, String method, JsonElement params) {

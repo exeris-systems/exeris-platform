@@ -6,7 +6,7 @@ between Studio, IDE plugins, and on-disk `@ExerisDomain` sources.
 
 > **Status:** uneven. `exeris-platform-lsp` is past scaffold — it depends on
 > `exeris-sdk-source-model-io` (ADR-037), ships the read-only `exeris/*` trio
-> plus `exeris/applyMutation` (ADR-042), and now ships as a standalone launcher
+> plus `exeris/applyMutation` (ADR-042) and its write-free sibling `exeris/previewMutation`, and now ships as a standalone launcher
 > that runs with no source tree (see [Running the LSP server](#running-the-lsp-server)).
 > The launcher serves the same surface over stdio and over WebSocket (`--websocket`).
 > `exeris-studio-frontend` connects to it over WebSocket and browses a workspace read-only: a tree
@@ -42,7 +42,7 @@ Studio (Angular + React)              IntelliJ Plugin           VS Code Extensio
 |---|---|---|
 | [`exeris-studio-backend`](exeris-studio-backend) | Java 25 | The platform's own operational state (workspaces today) and the REST/HTTP surface over it for the Studio frontend. **Holds no domain model** — all domain shape lives in `DomainMetadata` accessed via the LSP server. |
 | [`exeris-studio-frontend`](exeris-studio-frontend) | Angular | Studio shell + embedded React editor. Communicates with the LSP server over WebSocket. |
-| [`exeris-platform-lsp`](exeris-platform-lsp) | Java 25 | LSP server hosting `DomainMetadata`, exposing the custom Exeris extensions declared in [`ExerisProtocolExtensions`](exeris-platform-lsp/src/main/java/eu/exeris/platform/lsp/ExerisProtocolExtensions.java): read-only `exeris/domains`, `exeris/domainDescribe`, `exeris/actions`, and the single writer `exeris/applyMutation`. Also publishes a `-standalone` shaded launcher. |
+| [`exeris-platform-lsp`](exeris-platform-lsp) | Java 25 | LSP server hosting `DomainMetadata`, exposing the custom Exeris extensions declared in [`ExerisProtocolExtensions`](exeris-platform-lsp/src/main/java/eu/exeris/platform/lsp/ExerisProtocolExtensions.java): read-only `exeris/domains`, `exeris/domainDescribe`, `exeris/actions`, the single writer `exeris/applyMutation`, and `exeris/previewMutation`, which returns the writer's change as a diff without writing. Also publishes a `-standalone` shaded launcher. |
 | `exeris-platform-bom` | — | Bill of materials. |
 | `exeris-platform-parent` | — | Common Maven build configuration. |
 
