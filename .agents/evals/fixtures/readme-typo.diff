@@ -1,5 +1,5 @@
 --- a/README.md
 +++ b/README.md
 @@ -12,7 +12,7 @@
--Studio operates exclusivly on the canonical `DomainMetadata` model.
-+Studio operates exclusively on the canonical `DomainMetadata` model.
+-The LSP server operates exclusivly on the canonical `DomainMetadata` model.
++The LSP server operates exclusively on the canonical `DomainMetadata` model.

@@ -24,9 +24,7 @@ agents:
 
 skills:
   - exeris-platform-contract-sweep
-  - exeris-platform-cross-build-validation
   - exeris-platform-decision-doc-shape
-  - exeris-platform-frontend-projection-review
   - exeris-platform-idempotent-writeback-review
   - exeris-platform-lsp-protocol-review
   - exeris-platform-no-parallel-metamodel-review
@@ -44,7 +42,6 @@ workflows:
 policies:
   - adr-triggers
   - composition-runtime-placement
-  - frontend-stack
   - idempotent-writeback
   - jdk-baseline
   - lsp-wire-boundary
@@ -52,7 +49,6 @@ policies:
   - open-core-boundary
   - release-and-distribution
   - standalone-launcher-contract
-  - studio-surface-sourcing
 
 references:
   - adr-map

@@ -9,29 +9,22 @@ last-verified: 2026-10-06
 
 # Contributing to Exeris Platform
 
-This document describes how to build, test and contribute to `exeris-platform`: Studio, the LSP
-server and the studio backend.
+This document describes how to build, test and contribute to `exeris-platform`: the LSP server
+and its `exeris/*` protocol.
 
 ## Build and test
 
 ```bash
-mvn install                                                   # backend + LSP, incl. LauncherIT
+mvn install                                                   # LSP, incl. LauncherIT
 mvn -pl exeris-platform-lsp -am test                          # unit tests only (no LauncherIT)
 mvn -pl exeris-platform-lsp verify                            # + packages and runs the launcher
-cd exeris-studio-frontend && npm ci && npm run build          # Angular frontend (separate npm build)
-cd exeris-studio-frontend && npm run test                     # Angular unit tests
-cd exeris-studio-frontend && npm run codegen                  # regenerate src/app/generated
 ```
 
-**JDK 25 is the baseline** (`maven.compiler.release` in the root POM); Node 24+ for the frontend.
+**JDK 25 is the baseline** (`maven.compiler.release` in the root POM).
 
-The reactor depends on `exeris-kernel`, `exeris-sdk` and `exeris-tooling` at the versions pinned in
-`exeris-platform-bom`; all three resolve from Maven Central with no credential, and the frontend's
-packages resolve from npmjs. A fresh clone builds on its own.
-
-`src/app/generated` in the frontend is `@exeris/codegen-ts` output, committed and never edited by
-hand: change the `@ExerisDomain` source or the generator configuration and run `npm run codegen`.
-CI rebuilds the corpus, regenerates and fails on any difference.
+The reactor depends on `exeris-kernel` and `exeris-sdk` at the versions pinned in
+`exeris-platform-bom`; both resolve from Maven Central with no credential. A fresh clone builds on
+its own.
 
 `LauncherIT` runs the shaded `-standalone` jar as a separate process, so it needs `verify`; a plain
 `mvn test` does not exercise it.
@@ -51,12 +44,13 @@ fallback under `degradations`.
 [`AGENTS.md`](AGENTS.md) and [`.agents/policies/`](.agents/policies); in short:
 
 1. **No parallel metamodel.** `DomainMetadata` from `exeris-sdk-source-model` is the only model of a
-   user's domain. The backend holds its own state, never a domain shape.
+   user's domain; the server projects it and holds no shape of its own.
 2. **The LSP is the wire boundary.** Clients ask model questions over JSON-RPC; custom methods live
    under `exeris/`.
 3. **Idempotent write-back.** The LSP is the only writer to disk; the same mutation applied twice
    converges to the same bytes.
-4. **Open-core boundary.** Premium features belong in `exeris-platform-enterprise`.
+4. **Open-core boundary.** Only what must be open lives here: the server and its protocol. Studio
+   and premium features are not in this repository.
 5. **Some changes are decisions.** A change to the LSP surface, the open-core boundary or the
    write-back contract needs an ADR before it merges.
 

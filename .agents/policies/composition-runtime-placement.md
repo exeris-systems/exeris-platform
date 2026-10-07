@@ -9,8 +9,7 @@ composition runtime.
 - **No composition runtime here.** The boot conductor and the stamp assertion live in
   `exeris-sdk-composition-runtime`; schema and content binding live in
   `exeris-sdk-composition-spec`. `exeris-platform-composition-runtime` was retired from the reactor
-  and the BOM; reintroducing in-jar composition machinery into a Studio, LSP or backend module is a
-  regression.
+  and the BOM; reintroducing in-jar composition machinery into any module here is a regression.
 - **Do not port `CompositionBinding` back.** The hash that gates SKU boot must be computed by one
   implementation. The golden vector is pinned by the SDK's own `CompositionBindingTest`, including
   the normalisation of unversioned provides (`service@null` and `service@` are the same provide).

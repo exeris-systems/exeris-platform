@@ -1,63 +1,62 @@
 ---
 name: exeris-platform-no-parallel-metamodel-review
-description: Deep, evidence-gathering review that detects parallel-metamodel regression in `exeris-studio-backend` or `exeris-platform-lsp` — finds the diff itself, classifies each new type as projection vs persistence, and issues an APPROVE / CONDITIONAL / REJECT verdict. Use on any change that adds a record/class to those modules, adds a backend REST/HTTP endpoint, or is motivated by "store workspace entities" / "track project structure". (For a quick inline audit with a diff in hand, the `/no-parallel-metamodel-check` command is the lighter path.)
+description: Deep, evidence-gathering review that detects parallel-metamodel regression in `exeris-platform-lsp` — finds the diff itself, classifies each new type as a derived projection, the LSP's own operational state, or a second domain shape, and issues an APPROVE / CONDITIONAL / REJECT verdict. Use on any change that adds a record/class to the LSP, caches or persists domain data, or is motivated by "avoid re-reading the model" / "a client needs a different shape". (For a quick inline audit with a diff in hand, the `/no-parallel-metamodel-check` command is the lighter path.)
 ---
 
 # Exeris Platform No-Parallel-Metamodel Review
 
 ## Purpose
-Enforce: domain shape lives in `DomainMetadata` (from `exeris-sdk-source-model`), accessed via LSP. Studio backend and LSP server do NOT define or persist their own metamodel.
+Enforce: domain shape lives in `DomainMetadata` (from `exeris-sdk-source-model`), and the LSP projects it onto the wire. The LSP server does NOT define, cache as authoritative, or persist a metamodel of its own.
 
-The `EntityDefinition` / `PropertyDefinition` / `RelationDefinition` / `Project` records were deliberately deleted during the repo split. This skill is the gate that keeps them gone.
+`EntityDefinition` / `PropertyDefinition` / `RelationDefinition` / `Project` are absent from this repository on purpose. This skill is the gate that keeps them, and any renamed equivalent, out.
 
 ## When to Use
-- Any PR adding a new record/class to `exeris-studio-backend/src/main/java/`.
-- Any PR adding a new REST/HTTP endpoint to the backend.
-- Any PR adding a new persistence-shaped type to `exeris-platform-lsp`.
-- Any PR whose stated motivation is "store workspace entities" or "track project structure".
+- Any PR adding a new record/class to `exeris-platform-lsp/src/main/java/`.
+- Any PR that caches, indexes or persists domain data in the LSP.
+- Any PR adding a wire projection type in `ProtocolProjections` or beside it.
+- Any PR whose stated motivation is "avoid re-reading the model" or "a client needs a different shape".
 
 ## Required Inputs
 - PR diff and stated motivation.
-- New records / classes / endpoints introduced.
-- Whether the shape is persisted or in-memory-projected.
+- New records / classes introduced.
+- Whether each shape is derived from `DomainMetadata` per use, held as the LSP's own operational state, or held independently of the SDK model.
 
 ## Evidence Gathering (do this first)
 When no diff is handed in (autodispatch), find the change yourself — never review from the PR text alone:
-- `git diff origin/main...HEAD -- exeris-studio-backend exeris-platform-lsp` (or `git diff --staged` only in a pre-commit-hook context)
+- `git diff origin/main...HEAD -- exeris-platform-lsp` (or `git diff --staged` only in a pre-commit-hook context)
 - New types: `git diff origin/main...HEAD -- '*.java' | grep -E '^\+.*(record|class|interface|enum) '`
 - Domain-shape smell on added lines: grep for `name|field|property|relation|action|validation|event|saga`
-- New endpoints: grep added lines for `@GetMapping|@PostMapping|@PutMapping|@RequestMapping|@Path`
+- Wrapper vs re-declaration: does the new type carry a `DomainMetadata` component, or re-declare its fields?
 Ground every finding in a real `file:line`.
 
 ## Review Procedure
 1. **Scan for domain-shaped types** — flag any new record/class carrying `name`, `field`, `property`, `relation`, `action`, `validation`, `event`, `saga`, or any structure that mirrors `DomainMetadata`.
-2. **Distinguish projection from persistence** — in-memory view-model for UI is OK; stored / queried / mutated shape is a regression.
-3. **Scan REST/HTTP endpoints** — backend endpoints serving domain shape are a regression. Workspace state (paths, opened files, recent edits) is OK.
-4. **Check the motivation** — if the need is "the UI needs entity X", the right answer is "ask the LSP (`exeris/domains`, `exeris/domainDescribe`)", not "store entities in backend".
-5. **ADR check** — a genuine reintroduction requires a NEW ADR overriding the 0.1.0 deletion decision.
-6. **Decision and report** — produce one of: `APPROVE`, `CONDITIONAL`, `REJECT`.
+2. **Distinguish projection, own state and second model** — a projection computed from `DomainMetadata` is OK; a wrapper that carries `DomainMetadata` plus the LSP's own bookkeeping (source path, digest, document version) is OK; a shape stored, queried or mutated independently of the SDK model is a regression.
+3. **Check the motivation** — if the need is "a client needs entity X in another shape", the right answer is a projection of `DomainMetadata` over `exeris/*`; if the SDK lacks the facet, the facet is added upstream.
+4. **ADR check** — introducing a domain-shaped type beside `DomainMetadata` requires a NEW ADR.
+5. **Decision and report** — produce one of: `APPROVE`, `CONDITIONAL`, `REJECT`.
 
 ## Decision Logic
-- **APPROVE**: New types are workspace-state-shaped (not domain-shaped); endpoints serve workspace state; or change is genuinely a frontend in-memory projection.
-- **CONDITIONAL**: Domain-shaped projection that should be ephemeral but is structured as if persisted — recommend lifetime change.
-- **REJECT**: Persisted domain shape in backend / LSP; backend HTTP serving domain shape; assume regression intent if no ADR cites the change.
+- **APPROVE**: New types are the LSP's own operational state or derived projections; no field of `DomainMetadata` is re-declared as an independent source.
+- **CONDITIONAL**: A derived projection whose lifetime makes it look authoritative (e.g. cached past the source it came from) — recommend tying it to the source digest or computing it per use.
+- **REJECT**: A domain shape held, persisted or served independently of `DomainMetadata`; assume regression intent if no ADR cites the change.
 
 ## Completion Criteria
-- Every new record / class / endpoint scanned.
-- Projection vs persistence classified.
+- Every new record / class scanned.
+- Projection / own state / second model classified.
 - ADR requirement checked.
 - Verdict and remediation provided.
 
 ## Review Output Template
-1. **Scope analysed** (records / classes / endpoints added)
+1. **Scope analysed** (records / classes added)
 2. **Domain-shape findings** (what mirrors `DomainMetadata`)
-3. **Projection vs persistence** (per finding)
-4. **Motivation audit** (LSP redirect possible?)
+3. **Classification** (projection / own state / second model, per finding)
+4. **Motivation audit** (projection or upstream SDK facet possible?)
 5. **ADR requirement** (none / new ADR required)
 6. **Verdict** (`APPROVE` / `CONDITIONAL` / `REJECT`)
 7. **Required actions** (precise and minimal)
 
 ## Non-Negotiable Rules
-- Never approve a persisted parallel metamodel without a new ADR.
-- Never approve a backend HTTP endpoint that serves domain shape.
-- Always redirect "the UI needs entity X" to the LSP read methods (`exeris/domains`, `exeris/domainDescribe`).
+- Never approve a domain shape held independently of `DomainMetadata` without a new ADR.
+- Never approve a local model filling a facet the SDK lacks — the facet goes upstream.
+- Always redirect "a client needs entity X" to the LSP read methods (`exeris/domains`, `exeris/domainDescribe`).
