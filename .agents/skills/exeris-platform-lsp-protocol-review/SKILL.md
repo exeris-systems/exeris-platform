@@ -9,7 +9,7 @@ description: Deep, evidence-gathering review of the LSP wire surface — finds t
 Enforce the LSP wire-surface contract:
 - Custom methods are namespaced under `exeris/`.
 - `MutationOp` / `MutationResult` wire shape is owned by `exeris-sdk-source-model` (SDK 0.5.0).
-- stdio (IDE plugins) and WebSocket (Studio frontend) speak the same method surface.
+- stdio (IDE plugins, `exeris-ai-bridge`) and WebSocket (browser clients such as Studio) speak the same method surface.
 - Standard LSP methods follow the spec.
 
 ## When to Use
@@ -29,14 +29,14 @@ When no diff is handed in (autodispatch), find the change yourself:
 - `git diff origin/main...HEAD -- exeris-platform-lsp`
 - Custom methods touched: grep added/removed lines for method-string literals matching `"[a-zA-Z]+/[a-zA-Z]+"`; flag any not starting with `exeris/` or a standard LSP prefix (`textDocument/`, `workspace/`).
 - SDK alignment: grep for local definitions of `MutationOp|MutationResult|CapabilityDescriptor|DomainMetadata` (a local `record`/`class` of these is a regression).
-- Transport parity: confirm the stdio and WebSocket handler registrations changed together.
+- Transport parity: confirm the stdio and WebSocket handler registrations changed together, and that `TransportParityIT` covers the touched method.
 
 ## Review Procedure
 1. **Namespace audit** — every custom method MUST start with `exeris/`. Unprefixed custom methods are a hard reject.
 2. **Standard-LSP compliance** — `initialize`, `shutdown`, `textDocument/*`, `workspace/*` follow the spec. No Exeris-specific divergence.
 3. **SDK alignment** — `MutationOp` / `MutationResult` / `CapabilityDescriptor` / `DomainMetadata` MUST come from the SDK. Redefining locally is a regression.
 4. **Transport parity** — stdio and WebSocket speak the same method surface. A change to one MUST be mirrored to the other (or the divergence MUST be explicit, justified, and ADR-backed).
-5. **Cross-tool visibility** — if the change affects methods consumed by `exeris-ai-bridge` (`lsp:*` family per ADR-025), mark cross-tool-visibility and require ADR review.
+5. **Cross-tool visibility** — if the change affects methods consumed by `exeris-ai-bridge` (the read trio and `exeris/previewMutation`, `lsp:*` family per ADR-025), mark cross-tool-visibility and require ADR review. A method shaped for one consumer — the bridge, an IDE plugin or Studio — is a smell; the surface serves all of them.
 6. **Backward compatibility** — at 0.x, breaks are acceptable IF documented; at 1.0+ they require an ADR and a migration story.
 7. **Decision and report** — produce one of: `APPROVE`, `CONDITIONAL`, `REJECT`.
 

@@ -13,12 +13,12 @@ model: inherit
 Owner of the LSP wire surface and idempotent write-back contract.
 
 ## Primary Responsibilities
-- Validate that custom LSP methods stay under the `exeris/` namespace. The shipped surface is the read-only `exeris/domains`, `exeris/domainDescribe`, `exeris/actions` and the writer `exeris/applyMutation` — read it off the `@JsonRequest` annotations, not off a document.
+- Validate that custom LSP methods stay under the `exeris/` namespace. The shipped surface is the read-only `exeris/domains`, `exeris/domainDescribe`, `exeris/actions`, the writer `exeris/applyMutation` and its write-free sibling `exeris/previewMutation` — read it off the `@JsonRequest` annotations, not off a document.
 - Validate that standard LSP methods (`initialize`, `shutdown`, `textDocument/*`, `workspace/*`) follow the spec — no Exeris-specific divergence.
 - Enforce that the `MutationOp` / `MutationResult` wire shape comes from the SDK (ADR-042) — don't redefine.
-- Keep `exeris-ai-bridge` on the read-only trio (ADR-025); a reshape of any of the three amends ADR-025 before merging.
+- Keep `exeris-ai-bridge` on the read-only trio and `exeris/previewMutation` (ADR-025), never `exeris/applyMutation`; a reshape of any method in that slice amends ADR-025 before merging.
 - Enforce idempotent write-back: applying the same mutation twice must converge to identical on-disk state (same imports, same line numbers, same whitespace, no drift).
-- Enforce that stdio (IDE plugins) and WebSocket (Studio frontend) speak the same JSON-RPC surface — don't fork the method set per transport.
+- Enforce that stdio (IDE plugins, `exeris-ai-bridge`) and WebSocket (browser clients such as Studio) speak the same JSON-RPC surface — don't fork the method set per transport or shape a method for one consumer.
 
 ## Preflight
 - Read `README.md` target architecture (LSP-as-wire diagram).
@@ -62,7 +62,7 @@ For each finding: wire shape change → why (spec / SDK / idempotency) → minim
 2. `<follow-up if any>`
 
 ## Non-goals
-- Do not gate non-LSP changes through this agent (backend workspace-state endpoints, Angular UI components).
+- Do not gate non-wire changes through this agent (BOM pins, build plumbing, internal refactors that keep every wire shape).
 - Do not block transport-internal optimization that preserves wire shape (e.g. WebSocket framing).
 
 <!-- BEGIN GENERATED: composition (agents-md-schema.md rule 5) -->
@@ -73,7 +73,6 @@ Load these before working; each is the single owner of its procedure.
 
 - `.agents/skills/exeris-platform-lsp-protocol-review/SKILL.md`
 - `.agents/skills/exeris-platform-idempotent-writeback-review/SKILL.md`
-- `.agents/skills/exeris-platform-cross-build-validation/SKILL.md`
 
 ## Applies
 

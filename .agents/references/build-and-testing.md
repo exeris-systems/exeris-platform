@@ -6,27 +6,29 @@ Commands and the traps that make them lie. The root POM, `exeris-platform-bom` a
 ## Commands
 
 ```bash
-mvn install                                                   # backend + LSP, incl. LauncherIT
+mvn install                                                   # BOM, parent, LSP, incl. LauncherIT
 mvn -pl exeris-platform-lsp -am test                          # unit tests only (no LauncherIT)
 mvn -pl exeris-platform-lsp verify                            # + packages and runs the launcher
-cd exeris-studio-frontend && npm ci && npm run build          # Angular frontend (separate npm build)
-cd exeris-studio-frontend && npm run test                     # Angular unit tests
-cd exeris-studio-frontend && npm run codegen                  # regenerate src/app/generated
 ```
+
+The reactor is Maven only: `exeris-platform-bom`, `exeris-platform-parent` and
+`exeris-platform-lsp`. There is no npm build in this repository.
 
 `LauncherIT` needs the shaded jar, so it runs at `verify` under failsafe; `mvn test` alone does not
 exercise it. The jar lands at
 `exeris-platform-lsp/target/exeris-platform-lsp-<version>-standalone.jar`
-([policy](../policies/standalone-launcher-contract.md)).
+([policy](../policies/standalone-launcher-contract.md)). `TransportParityIT` drives the same
+session over stdio and WebSocket and asserts the two answer alike
+([policy](../policies/lsp-wire-boundary.md)).
 
 ## Upstreams resolve from Maven Central
 
-The reactor depends on `eu.exeris:exeris-kernel-*`, `eu.exeris:exeris-sdk-*` and
-`eu.exeris.tooling:*` at the versions `exeris-platform-bom` pins (the SDK BOM is imported, so it
-also manages Jackson and the test libraries). All of them resolve from Maven Central with no
-credential; a fresh clone builds on its own, and CI clones nothing. Building against an unreleased
-upstream is the exception: install it from the sibling repository and override the pin on the
-command line, never in a commit. Procedure: `exeris-platform-sdk-dep-sync`.
+The reactor depends on `eu.exeris:exeris-kernel-*` and `eu.exeris:exeris-sdk-*` at the versions
+`exeris-platform-bom` pins (the SDK BOM is imported, so it also manages Jackson and the test
+libraries). All of them resolve from Maven Central with no credential; a fresh clone builds on its
+own, and CI clones nothing. Building against an unreleased upstream is the exception: install it
+from the sibling repository and override the pin on the command line, never in a commit.
+Procedure: `exeris-platform-sdk-dep-sync`.
 
 A pin bump needs no `mvn clean`. From SDK 0.12.0 on, `SchemaVersion.CURRENT` is initialised by a
 method rather than a constant expression, so its class file carries no `ConstantValue` attribute
@@ -34,16 +36,9 @@ and javac does not inline the value into the tests that read it: they see the ne
 without a recompile. Pinning an SDK older than 0.12.0 brings the inlining back, and with it the
 need for `clean` after the bump.
 
-## Generated frontend code
+## A wire-shape change
 
-`exeris-studio-frontend/src/app/generated` is the output of `@exeris/codegen-ts` (an exact
-devDependency kept at `exeris.tooling.version`) run over the
-`exeris-studio-backend` metadata corpus. It is committed and never edited by hand: a change belongs
-in the `@ExerisDomain` source, the generator configuration, or hand-written code outside
-`generated/`. CI rebuilds the corpus, reruns `npm run codegen` and fails on any difference.
-
-## Cross-build
-
-A change that spans the Maven reactor and `exeris-studio-frontend`, or that changes a wire shape the
-frontend consumes, is validated on both sides: `mvn install`, then `npm run build` and
-`npm run test`. Procedure: `exeris-platform-cross-build-validation`.
+A change to an `exeris/*` method or its wire shape is validated in this repository by the LSP
+tests (`ExerisLanguageServerTest`, `ProtocolProjectionsTest`, `ApplyMutationTest`) and `LauncherIT`.
+Its consumers — IDE plugins, `exeris-ai-bridge`, Studio — are validated in their own repositories;
+the ADR the change triggers is what tells them ([policy](../policies/adr-triggers.md)).

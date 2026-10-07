@@ -11,11 +11,9 @@
         "task_class": {
           "enum": [
             "ARCHITECTURE",
-            "BACKEND_IMPLEMENTATION",
+            "IMPLEMENTATION",
             "LSP_PROTOCOL",
-            "FRONTEND_IMPLEMENTATION",
             "DOCS_ADR",
-            "CROSS_BUILD",
             "MULTI_DOMAIN"
           ]
         },

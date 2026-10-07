@@ -19,10 +19,7 @@
         },
         "scope_class": {
           "enum": [
-            "studio-backend",
             "platform-lsp",
-            "studio-frontend",
-            "cross-build",
             "build-and-release",
             "agent-layer",
             "docs-only"

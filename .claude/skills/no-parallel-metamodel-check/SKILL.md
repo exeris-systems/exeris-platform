@@ -1,6 +1,6 @@
 ---
 name: no-parallel-metamodel-check
-description: Refuse any reintroduction of a parallel metamodel in studio-backend or platform-lsp. Domain shape is `DomainMetadata` (from exeris-sdk-source-model), accessed via LSP — full stop.
+description: Refuse any parallel metamodel in exeris-platform-lsp. Domain shape is `DomainMetadata` (from exeris-sdk-source-model), projected onto the wire by the LSP — full stop.
 disable-model-invocation: true
 ---
 
@@ -9,19 +9,19 @@ disable-model-invocation: true
 Audit this change for parallel-metamodel regression.
 
 The contract:
-- The `EntityDefinition`, `PropertyDefinition`, `RelationDefinition`, `Project` records were deliberately deleted during the repo split. The backend `package-info` documents this.
-- Studio operates exclusively on canonical `DomainMetadata` (from `exeris-sdk-source-model`), accessed via LSP.
-- Frontend view-model projection of `DomainMetadata` is OK — only **persisting** a parallel shape is forbidden.
-- "Just for the UI" or "just for the workspace tree" is not a sufficient justification.
+- `EntityDefinition`, `PropertyDefinition`, `RelationDefinition`, `Project` and any renamed equivalent are absent from this repository on purpose.
+- The LSP operates exclusively on canonical `DomainMetadata` (from `exeris-sdk-source-model`) and projects it onto the wire.
+- A projection derived from `DomainMetadata` is OK, and so is the LSP's own operational state (sessions, open documents, an index that wraps `DomainMetadata`) — only an independent, authoritative second shape is forbidden.
+- "Just for performance" or "just for one client" is not a sufficient justification.
 
 Change:
 $ARGUMENTS
 
 Please review:
-1. Does any new class/record in `exeris-studio-backend` or `exeris-platform-lsp` carry domain shape (entity / property / relationship / action / field / validation)?
-2. Does any new REST/HTTP endpoint in `exeris-studio-backend` return domain shape?
-3. Is the change a projection (in-memory view for UI) or a persistence (stored, queried, mutated)?
-4. If domain shape is genuinely needed, is the right move "read it over the LSP (`exeris/domains`, `exeris/domainDescribe`)" rather than "add a backend record"?
-5. Minimal correction if a parallel metamodel is being reintroduced.
+1. Does any new class/record in `exeris-platform-lsp` carry domain shape (entity / property / relationship / action / field / validation)?
+2. Does it wrap `DomainMetadata`, or re-declare its fields?
+3. Is it a derived projection, the LSP's own state, or a shape held (cached, persisted, mutated) independently of the SDK model?
+4. If a facet is genuinely missing, is the right move "add it to the SDK and project it" rather than "model it here"?
+5. Minimal correction if a parallel metamodel is being introduced.
 
-A genuine reintroduction requires a NEW ADR overriding the deletion recorded in the backend `package-info`. Do not silently allow it through a backend PR.
+Introducing a domain-shaped type beside `DomainMetadata` requires a NEW ADR. Do not silently allow it through an LSP PR.

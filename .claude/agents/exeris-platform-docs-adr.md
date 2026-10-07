@@ -13,7 +13,7 @@ model: inherit
 Maintain knowledge integrity between platform implementation and its strategic documentation.
 
 ## Primary Responsibilities
-- Detect drift between changed code and `README.md` target architecture diagram + module table, `ROADMAP.md` milestone scope, backend `package-info` ("no metamodel here" rationale).
+- Detect drift between changed code and `README.md` target architecture diagram + module table, `ROADMAP.md` milestone scope, and the LSP `package-info` (the server's stated scope).
 - Determine whether a change should trigger a new ADR (the cross-repo registry is `adr-index.md` in the `exeris-docs` repository — usually a sibling checkout; treat its absence in a container or CI context as a hard miss, not a silent skip), an amendment to an existing ADR, a README edit, a ROADMAP milestone update, or nothing.
 - Reserve ADR numbers in the central registry BEFORE drafting.
 - Keep docs realistic to the current repository state; the code settles what has shipped.
@@ -27,12 +27,12 @@ Maintain knowledge integrity between platform implementation and its strategic d
 5. If a new ADR is required, reserve the number in `exeris-docs/adr-index.md` first.
 
 ## Drift Triggers
-- LSP method-surface change → ROADMAP entry + README LSP section + an ADR; a change to the read-only trio consumed by `exeris-ai-bridge`'s `lsp:*` family is an ADR-025 amendment.
-- Open-core boundary movement (feature moving between this repo and `exeris-platform-enterprise`) → new ADR required (visibility taxonomy per ADR-020).
+- LSP method-surface change → ROADMAP entry + README LSP section + an ADR; a change to the read trio or `exeris/previewMutation`, consumed by `exeris-ai-bridge`'s `lsp:*` family, is an ADR-025 amendment.
+- Open-core boundary movement (feature moving between this open repo and a closed product, Studio included) → new ADR required (visibility taxonomy per ADR-020).
 - Idempotent write-back contract change → new ADR required.
-- Parallel-metamodel-regression escalation (someone proposes reintroducing `EntityDefinition` etc.) → new ADR required to override the deletion recorded in the backend `package-info`; do NOT silently allow.
-- Frontend framework change (Angular/React swap, Tailwind alternative) → new ADR.
-- Upstream resolution shift (Maven Central / npmjs vs a sibling install) → ROADMAP entry; ADR only if it changes consumer experience.
+- Parallel-metamodel-regression escalation (someone proposes an `EntityDefinition`-style domain type beside `DomainMetadata`) → new ADR required; do NOT silently allow.
+- A method surface that differs between transports → new ADR.
+- Upstream resolution shift (Maven Central vs a sibling install) → ROADMAP entry; ADR only if it changes consumer experience.
 
 ## Non-goals
 - Do not rewrite large documentation areas without code-backed need.

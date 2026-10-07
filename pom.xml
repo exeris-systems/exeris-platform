@@ -10,10 +10,10 @@
 
     <name>Exeris Platform :: Root</name>
     <description>
-        Exeris Platform — Studio (Angular shell + embedded React editor),
-        backend services, and the LSP server that powers bidirectional sync
-        between Studio, IDE plugins, and on-disk @ExerisDomain sources.
-        Open-core; premium features ship in exeris-platform-enterprise.
+        Exeris Platform — the open-source LSP server and its exeris/* protocol,
+        which keep design-time clients (IDE plugins, exeris-ai-bridge, and
+        Studio, Exeris' closed product) in sync with on-disk @ExerisDomain
+        sources.
     </description>
     <url child.project.url.inherit.append.path="false">https://github.com/exeris-systems/exeris-platform</url>
     <inceptionYear>2026</inceptionYear>
@@ -58,7 +58,7 @@
     <!--
         GitHub Packages, not Maven Central, is this repo's deploy target — and that is deliberate.
 
-        The rest of the Exeris stack (exeris-kernel, exeris-sdk, exeris-tooling) is on Central, and
+        The rest of the Exeris stack (exeris-kernel, exeris-sdk) is on Central, and
         this build resolves it from there. Central is also where these coordinates belong, which is
         why the metadata Central demands (url, organization, licenses, developers, scm,
         issueManagement) is already settled above. What is not settled is this repo's own release
@@ -94,15 +94,14 @@
         <module>exeris-platform-bom</module>
         <module>exeris-platform-parent</module>
 
-        <module>exeris-studio-backend</module>
         <module>exeris-platform-lsp</module>
     </modules>
 
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
-        <!-- 25, matching the release level exeris-kernel, exeris-sdk and exeris-tooling compile to
-             at the versions exeris-platform-bom pins (all three: maven.compiler.release 25).
+        <!-- 25, matching the release level exeris-kernel and exeris-sdk compile to at the versions
+             exeris-platform-bom pins (both: maven.compiler.release 25).
              Verify against those published POMs, not against this comment, when any of them moves.
 
              Load-bearing for a consumer, not a preference: exeris-platform-lsp ships a standalone
