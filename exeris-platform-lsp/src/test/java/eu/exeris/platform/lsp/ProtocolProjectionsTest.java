@@ -80,6 +80,18 @@ class ProtocolProjectionsTest {
         assertThat(relationship.get("targetEntity").getAsString()).isEqualTo("Customer");
     }
 
+    @Test
+    void sourceDigestIsCarriedWhenPresentAndOmittedWhenAbsent() {
+        IndexedDomain withDigest = new IndexedDomain(domainWith(List.of()), Path.of("/ws/com/example/Order.java"), "sha256:abc");
+        JsonObject resultWith = describeIndexedOnTheWire(withDigest);
+        assertThat(resultWith.has("sourceDigest")).isTrue();
+        assertThat(resultWith.get("sourceDigest").getAsString()).isEqualTo("sha256:abc");
+
+        IndexedDomain withoutDigest = new IndexedDomain(domainWith(List.of()), Path.of("/ws/com/example/Order.java"), null);
+        JsonObject resultWithout = describeIndexedOnTheWire(withoutDigest);
+        assertThat(resultWithout.has("sourceDigest")).isFalse();
+    }
+
     private static DomainMetadata domainWith(List<RelationshipMetadata> relationships) {
         return DomainMetadata.builder("Order", "com.example").relationships(relationships).build();
     }
@@ -89,7 +101,11 @@ class ProtocolProjectionsTest {
     }
 
     private static JsonObject describeOnTheWire(DomainMetadata metadata) {
-        DomainDescription description = ProtocolProjections.toDescription(indexed(metadata));
+        return describeIndexedOnTheWire(indexed(metadata));
+    }
+
+    private static JsonObject describeIndexedOnTheWire(IndexedDomain indexed) {
+        DomainDescription description = ProtocolProjections.toDescription(indexed);
         ResponseMessage response = new ResponseMessage();
         response.setId(1);
         response.setResult(description);

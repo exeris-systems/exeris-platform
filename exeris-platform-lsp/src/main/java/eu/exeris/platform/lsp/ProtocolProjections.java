@@ -34,7 +34,8 @@ final class ProtocolProjections {
                 .map(a -> new ActionDescription(a.name(), a.httpMethod(), a.resultType(), params(a)))
                 .toList();
         return new DomainDescription(d.fullyQualifiedName(), d.entityName(), d.packageName(),
-                indexed.sourcePath().toUri().toString(), fields, actions, artefacts(d), relationships(d));
+                indexed.sourcePath().toUri().toString(), fields, actions, artefacts(d), relationships(d),
+                indexed.sourceDigest());
     }
 
     static List<ActionSummary> toActionSummaries(IndexedDomain indexed) {

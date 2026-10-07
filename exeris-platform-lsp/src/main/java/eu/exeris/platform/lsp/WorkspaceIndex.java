@@ -2,6 +2,7 @@ package eu.exeris.platform.lsp;
 
 import eu.exeris.sdk.sourcemodel.ast.DomainMetadata;
 import eu.exeris.sdk.sourcemodel.io.SourceModelReader;
+import eu.exeris.sdk.sourcemodel.mutation.SourceDigest;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.file.Files;
@@ -25,7 +26,10 @@ final class WorkspaceIndex {
     private static final System.Logger LOG = System.getLogger(WorkspaceIndex.class.getName());
 
     /** A parsed domain paired with the on-disk source it was read from. */
-    record IndexedDomain(DomainMetadata metadata, Path sourcePath) {
+    record IndexedDomain(DomainMetadata metadata, Path sourcePath, String sourceDigest) {
+        IndexedDomain(DomainMetadata metadata, Path sourcePath) {
+            this(metadata, sourcePath, null);
+        }
     }
 
     private final Path root;
@@ -35,6 +39,11 @@ final class WorkspaceIndex {
 
     WorkspaceIndex(Path root) {
         this.root = root;
+    }
+
+    /** The workspace root the index scans, or {@code null} when the client named none. */
+    Path root() {
+        return root;
     }
 
     synchronized List<IndexedDomain> domains() {
@@ -84,7 +93,8 @@ final class WorkspaceIndex {
             return Optional.empty();
         }
         try {
-            return reader.read(source).map(metadata -> new IndexedDomain(metadata, file));
+            String digest = SourceDigest.of(source);
+            return reader.read(source).map(metadata -> new IndexedDomain(metadata, file, digest));
         } catch (RuntimeException readFailure) {
             // The reader throws IllegalArgumentException on unparseable Java; we defensively
             // catch any unchecked failure so a single bad / work-in-progress source (or an
