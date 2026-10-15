@@ -1,6 +1,7 @@
 package eu.exeris.platform.lsp;
 
 import com.google.gson.JsonElement;
+import java.io.IOException;
 import java.net.URI;
 import java.nio.file.Path;
 import java.util.List;
@@ -10,6 +11,7 @@ import java.util.function.IntConsumer;
 import org.eclipse.lsp4j.ClientCapabilities;
 import org.eclipse.lsp4j.DidChangeWatchedFilesRegistrationOptions;
 import org.eclipse.lsp4j.FileSystemWatcher;
+import org.eclipse.lsp4j.InitializeError;
 import org.eclipse.lsp4j.InitializeParams;
 import org.eclipse.lsp4j.InitializeResult;
 import org.eclipse.lsp4j.InitializedParams;
@@ -19,6 +21,9 @@ import org.eclipse.lsp4j.SaveOptions;
 import org.eclipse.lsp4j.ServerCapabilities;
 import org.eclipse.lsp4j.TextDocumentSyncKind;
 import org.eclipse.lsp4j.TextDocumentSyncOptions;
+import org.eclipse.lsp4j.jsonrpc.ResponseErrorException;
+import org.eclipse.lsp4j.jsonrpc.messages.ResponseError;
+import org.eclipse.lsp4j.jsonrpc.messages.ResponseErrorCode;
 import org.eclipse.lsp4j.jsonrpc.messages.Either;
 import org.eclipse.lsp4j.services.LanguageClient;
 import org.eclipse.lsp4j.services.LanguageClientAware;
@@ -34,6 +39,13 @@ import org.eclipse.lsp4j.services.WorkspaceService;
  * ({@code exeris/domains}, {@code exeris/domainDescribe}, {@code exeris/actions}) by querying
  * the {@link WorkspaceIndex} built over the workspace root at {@code initialize} time. Those
  * methods sit under the {@code exeris/} namespace per the platform LSP method-surface contract.
+ *
+ * <p>The workspace root is the client's to name unless the server was started with a pinned root
+ * ({@code --root}). A pinned root is the only directory the session indexes and writes under: an
+ * {@code initialize} that names no root gets the pinned one, one that names the same directory is
+ * served, and one that names any other is refused with {@code InvalidParams} and
+ * {@code retry: false}, so a client cannot steer the write path of {@code exeris/applyMutation}
+ * to a tree the operator did not choose. Both are compared as real paths.
  */
 public final class ExerisLanguageServer
         implements LanguageServer, LanguageClientAware, ExerisProtocolExtensions {
@@ -61,6 +73,7 @@ public final class ExerisLanguageServer
     private boolean clientSupportsFileWatchers;
 
     private final IntConsumer exitAction;
+    private final Path pinnedRoot;
 
     /** A server whose {@code exit} notification ends the JVM, as a launched server must. */
     public ExerisLanguageServer() {
@@ -73,7 +86,19 @@ public final class ExerisLanguageServer
      * @param exitAction receives the code {@code exit} would end the process with
      */
     public ExerisLanguageServer(IntConsumer exitAction) {
+        this(exitAction, null);
+    }
+
+    /**
+     * A server whose workspace root is pinned rather than named by the client.
+     *
+     * @param exitAction receives the code {@code exit} would end the process with
+     * @param pinnedRoot the only root this session serves, as a real path, or {@code null} to take
+     *                   the root the client names
+     */
+    public ExerisLanguageServer(IntConsumer exitAction, Path pinnedRoot) {
         this.exitAction = Objects.requireNonNull(exitAction, "exitAction");
+        this.pinnedRoot = pinnedRoot;
         // Both services share one invalidation hook: a save or an out-of-band disk change drops
         // the cached scan so the next read re-parses from disk.
         this.textDocumentService = new ExerisTextDocumentService(this::invalidateIndex);
@@ -82,7 +107,13 @@ public final class ExerisLanguageServer
 
     @Override
     public CompletableFuture<InitializeResult> initialize(InitializeParams params) {
-        this.index = new WorkspaceIndex(resolveRoot(params));
+        Path root;
+        try {
+            root = sessionRoot(params);
+        } catch (ResponseErrorException refused) {
+            return CompletableFuture.failedFuture(refused);
+        }
+        this.index = new WorkspaceIndex(root);
         this.clientSupportsFileWatchers = supportsDynamicFileWatchers(params.getCapabilities());
 
         ServerCapabilities capabilities = new ServerCapabilities();
@@ -189,18 +220,49 @@ public final class ExerisLanguageServer
     }
 
     /**
-     * Resolves the workspace root from rootUri, falling back to the first workspace folder.
+     * The root this session serves: the client's, or the pinned one when the client's is absent or
+     * names the same directory.
+     *
+     * @throws ResponseErrorException when a root is pinned and the client names another
+     */
+    private Path sessionRoot(InitializeParams params) {
+        String requested = requestedRootUri(params);
+        if (pinnedRoot == null) {
+            return requested == null ? null : Path.of(URI.create(requested));
+        }
+        if (requested == null || pinnedRoot.equals(realPathOf(requested))) {
+            return pinnedRoot;
+        }
+        ResponseError error = new ResponseError(ResponseErrorCode.InvalidParams,
+                "workspace root is pinned to " + pinnedRoot + " (--root); initialize named "
+                        + requested,
+                new InitializeError(false));
+        throw new ResponseErrorException(error);
+    }
+
+    /** The real path a client's root URI names, or {@code null} when it names none on this disk. */
+    private static Path realPathOf(String uri) {
+        try {
+            return Path.of(URI.create(uri)).toRealPath();
+        } catch (IOException | RuntimeException _) {
+            // Not a file URI, malformed, or no such directory: none of these is the pinned root.
+            return null;
+        }
+    }
+
+    /**
+     * The root URI the client names: rootUri, falling back to the first workspace folder.
      * {@code rootUri} is deprecated in the LSP spec but still sent by most clients, so we
      * honour it for compatibility before falling back to {@code workspaceFolders}.
      */
     @SuppressWarnings("deprecation")
-    private static Path resolveRoot(InitializeParams params) {
+    private static String requestedRootUri(InitializeParams params) {
         String uri = params.getRootUri();
         if (uri == null && params.getWorkspaceFolders() != null
                 && !params.getWorkspaceFolders().isEmpty()) {
             uri = params.getWorkspaceFolders().get(0).getUri();
         }
-        return uri == null ? null : Path.of(URI.create(uri));
+        return uri;
     }
 
     @Override

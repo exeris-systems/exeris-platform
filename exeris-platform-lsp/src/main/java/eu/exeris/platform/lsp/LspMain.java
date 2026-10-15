@@ -28,6 +28,10 @@ public final class LspMain {
      * The launcher's console contract: a parse error goes to stderr with exit code 2, and the
      * WebSocket mode announces its bound {@code ws://} URL on stdout for whatever started it. On
      * stdio, stdout is the protocol stream and nothing else is written to it.
+     *
+     * @param args the launcher options {@link LauncherOptions#parse} accepts
+     * @throws InterruptedException when the thread serving the session is interrupted
+     * @throws ExecutionException   when the stdio listener ends with a failure
      */
     @SuppressWarnings("java:S106")
     public static void main(String[] args) throws InterruptedException, ExecutionException {
@@ -40,13 +44,14 @@ public final class LspMain {
             return;
         }
         switch (options.transport()) {
-            case STDIO -> runStdio();
+            case STDIO -> runStdio(options);
             case WEBSOCKET -> runWebSocket(options);
         }
     }
 
-    private static void runStdio() throws InterruptedException, ExecutionException {
-        ExerisLanguageServer server = new ExerisLanguageServer();
+    private static void runStdio(LauncherOptions options)
+            throws InterruptedException, ExecutionException {
+        ExerisLanguageServer server = new ExerisLanguageServer(System::exit, options.root());
         Launcher<LanguageClient> launcher =
                 LSPLauncher.createServerLauncher(server, System.in, System.out);
         server.connect(launcher.getRemoteProxy());
@@ -72,7 +77,7 @@ public final class LspMain {
         WebSocketConfig config = WebSocketConfig.defaultServer(
                 options.host(), options.port(), options.allowedOrigins());
         WebSocketServerEngine engine = provider.createServerEngine(config);
-        engine.setHandler(new LspWebSocketConnectionHandler());
+        engine.setHandler(new LspWebSocketConnectionHandler(options.root()));
         engine.start();
 
         System.out.printf("Exeris LSP WebSocket listening on ws://%s:%d/lsp%n", options.host(), engine.boundPort());

@@ -119,6 +119,10 @@ This file tracks scope per milestone. Items marked `[ ]` are open; `[x]` shipped
 > the server the way model edits do.
 
 - [ ] LSP sync for code-level edits, through the SDK writer, idempotent like model edits
+- [x] `--root <dir>` pins the workspace root on either transport: an `initialize` naming no root
+      is served the pinned one, the same directory (as a real path) is served, any other is
+      refused with `InvalidParams` and `retry: false`, so no client steers the write path of
+      `exeris/applyMutation` to a tree the operator did not choose
 
 ## 0.7.0 — IDE plugin support
 

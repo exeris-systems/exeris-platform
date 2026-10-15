@@ -4,6 +4,7 @@ import eu.exeris.kernel.spi.websocket.WebSocketCloseCode;
 import eu.exeris.kernel.spi.websocket.WebSocketExchange;
 import eu.exeris.kernel.spi.websocket.WebSocketHandler;
 import eu.exeris.platform.lsp.ExerisLanguageServer;
+import java.nio.file.Path;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
@@ -14,7 +15,8 @@ import org.eclipse.lsp4j.launch.LSPLauncher;
  *
  * <p>Honours the ADR-084 requirements:
  * <ul>
- *   <li>One {@link ExerisLanguageServer} allocated per session.</li>
+ *   <li>One {@link ExerisLanguageServer} allocated per session, every one on the same pinned
+ *       workspace root when the launcher was given one.</li>
  *   <li>Blocking virtual thread loop on {@link WebSocketExchange#receive()}, handing messages to
  *       LSP4J through a bounded handoff that parks the loop while LSP4J is behind (backpressure,
  *       never an unbounded on-heap queue).</li>
@@ -26,6 +28,23 @@ public final class LspWebSocketConnectionHandler implements WebSocketHandler {
 
     private static final System.Logger LOG =
             System.getLogger(LspWebSocketConnectionHandler.class.getName());
+
+    private final Path pinnedRoot;
+
+    /** A handler whose sessions take the workspace root their client names. */
+    public LspWebSocketConnectionHandler() {
+        this(null);
+    }
+
+    /**
+     * A handler whose sessions serve one pinned workspace root.
+     *
+     * @param pinnedRoot the root every session serves, as a real path, or {@code null} to take the
+     *                   root each client names
+     */
+    public LspWebSocketConnectionHandler(Path pinnedRoot) {
+        this.pinnedRoot = pinnedRoot;
+    }
 
     @Override
     public void handle(WebSocketExchange exchange) {
@@ -40,7 +59,7 @@ public final class LspWebSocketConnectionHandler implements WebSocketHandler {
             } catch (Exception e) {
                 LOG.log(System.Logger.Level.DEBUG, "Failed to close exchange on server exit", e);
             }
-        });
+        }, pinnedRoot);
 
         WebSocketJsonRpcFraming.MessageInputStream in = WebSocketJsonRpcFraming.createInputStream();
         WebSocketJsonRpcFraming.FramingOutputStream out = WebSocketJsonRpcFraming.createOutputStream(exchange);
