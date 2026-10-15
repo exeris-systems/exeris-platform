@@ -1,6 +1,7 @@
 name: publish
 
-# A release is a TAG, and nothing else is.
+# Only a TAG publishes. It goes on the merge commit of the cut pull request, whose POMs carry the
+# version the tag names.
 #
 #   push a tag v<x.y.z>  -> build, gate, deploy to GitHub Packages, cut the GitHub Release with
 #                           the standalone launcher attached. This is the only path that publishes.
