@@ -4,7 +4,7 @@ type: reference
 visibility: public
 owning-repo: exeris-platform
 status: active
-last-verified: 2026-10-07
+last-verified: 2026-10-15
 ---
 
 # Review rules for `exeris-platform`
