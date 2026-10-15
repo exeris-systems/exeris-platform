@@ -11,8 +11,9 @@
   which deploys. `workflow_dispatch` on that workflow is a dry run that touches nothing remote.
 - **Never publish on a push to `main`.** A development line shares one `-SNAPSHOT` coordinate, so
   publishing per merge produces artefacts that share a coordinate and differ in content. Trunk sits
-  on `<next>-SNAPSHOT`, and `main` never carries a release version. The cut procedure is in
-  `ROADMAP.md`.
+  on `<next>-SNAPSHOT` between releases; a release version reaches `main` only through the cut pull
+  request, and the tag goes on that merge commit, whose POMs must say the tag's version. The cut
+  procedure is in `ROADMAP.md`.
 - **When Central is wired, it rides the same tag**: one cut, both registries. The channels differ in
   reversibility, not in trigger — a Packages coordinate can be republished, a Central version is
   spent forever — which is why only Central needs the signing and readiness machinery.

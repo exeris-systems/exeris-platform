@@ -82,14 +82,16 @@ jobs:
           fi
           version="${TAG#v}"
 
-          # The tag must name the development line the POMs are actually on. Without this, tagging
-          # v0.9.0 off a 0.3.0-SNAPSHOT trunk quietly produces a 0.9.0 release containing 0.3.0
-          # work — and on an immutable repository that number is then spent. Typos in a tag are the
-          # realistic failure here, not malice.
+          # The tag must sit on the commit that cut this version: the POMs there say exactly what
+          # the tag says, and what was reviewed and merged is byte for byte what gets built. A tag
+          # on a -SNAPSHOT commit, or on the cut of another version, is on the wrong commit —
+          # without this check it quietly releases that commit's work under the tag's number, and
+          # on an immutable repository that number is then spent. Typos in a tag are the realistic
+          # failure here, not malice.
           pom=$(mvn -B -ntp -q -Dexpression=project.version -DforceStdout help:evaluate)
-          if [ "$pom" != "${version}-SNAPSHOT" ]; then
-            echo "::error::Tag '$TAG' asks for $version, but the POMs are on $pom." >&2
-            echo "::error::Bump the reactor to ${version}-SNAPSHOT first, or tag the version the trunk is on." >&2
+          if [ "$pom" != "$version" ]; then
+            echo "::error::Tag '$TAG' asks for $version, but the POMs at this commit are on $pom." >&2
+            echo "::error::Tag the commit that cut $version (its POMs say $version), not another one." >&2
             exit 1
           fi
 
@@ -101,13 +103,6 @@ jobs:
           fi
 
           echo "releasing $version from $TAGGED_SHA"
-
-      - name: Drop the -SNAPSHOT suffix
-        if: startsWith(github.ref, 'refs/tags/')
-        working-directory: exeris-platform
-        env:
-          TAG: ${{ github.ref_name }}
-        run: mvn -B -ntp versions:set -DnewVersion="${TAG#v}" -DgenerateBackupPoms=false
 
       # ONE Maven invocation, and that is the point: `deploy` runs the whole lifecycle, so the jar
       # LauncherIT started as a separate `java -jar` process is the exact jar that gets uploaded.
@@ -149,9 +144,14 @@ jobs:
           VERSION: ${{ steps.artifact.outputs.version }}
           JAR: ${{ steps.artifact.outputs.jar }}
         run: |
-          echo "Trunk is on $VERSION, so the next cut is tag v${VERSION%-SNAPSHOT}."
+          release="${VERSION%-SNAPSHOT}"
+          if [ "$release" != "$VERSION" ]; then
+            echo "Trunk is on $VERSION, so the next cut sets the POMs to $release and is tagged v$release."
+          else
+            echo "Trunk is on the cut of $VERSION, so tag v$VERSION goes on this commit."
+          fi
           echo "That tag would deploy eu.exeris.platform:* to GitHub Packages and cut a release"
-          echo "carrying $(basename "$JAR" | sed "s/$VERSION/${VERSION%-SNAPSHOT}/")."
+          echo "carrying exeris-platform-lsp-${release}-standalone.jar."
           echo "Nothing was published — a dry run touches nothing remote."
 
       - name: Cut the GitHub Release

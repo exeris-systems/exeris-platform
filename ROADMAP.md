@@ -4,7 +4,7 @@ type: roadmap
 visibility: public
 owning-repo: exeris-platform
 status: active
-last-verified: 2026-10-07
+last-verified: 2026-10-15
 ---
 
 # Exeris Platform — Roadmap to 1.0.0 GA
@@ -166,18 +166,22 @@ This file tracks scope per milestone. Items marked `[ ]` are open; `[x]` shipped
 
 ### Cutting a release
 
-The reactor version names the release the current line will *become*, so trunk sits on
-`<next>-SNAPSHOT` and `main` never carries a release version.
+Between releases the reactor sits on `<next>-SNAPSHOT`, naming the release the current line will
+*become*. A release version reaches `main` only through the cut, and the tag goes on that commit,
+so what was reviewed and merged is exactly what `publish.yml` builds.
 
 1. Finish the milestone's scope and tick its boxes here.
    A completed milestone does **not** have to be tagged — 0.3.0 was not. Tag when something
    downstream needs the artifact; otherwise let the content ride the next cut and move the trunk
    line straight on, as 0.3.0 and 0.4.0 did.
-2. Push the tag: `git tag v<x.y.z> && git push origin v<x.y.z>`. `publish.yml` refuses a tag that
-   does not match the trunk's line, that is not on `main`, or whose `LauncherIT` fails — so a
-   mistyped tag costs nothing.
-3. Enter the next line: `mvn versions:set -DnewVersion=<next>-SNAPSHOT -DgenerateBackupPoms=false`,
-   commit as `chore: enter <next> development`.
+2. Merge a `release(<x.y.z>): cut <x.y.z>` pull request:
+   `mvn versions:set -DnewVersion=<x.y.z> -DgenerateBackupPoms=false`, `<scm><tag>` set to
+   `v<x.y.z>`, and the milestone marked cut here.
+3. Push the tag on that merge commit: `git tag v<x.y.z> && git push origin v<x.y.z>`.
+   `publish.yml` refuses a tag whose commit's POMs say another version, that is not on `main`, or
+   whose `LauncherIT` fails — so a mistyped tag costs nothing.
+4. Enter the next line: `mvn versions:set -DnewVersion=<next>-SNAPSHOT -DgenerateBackupPoms=false`,
+   `<scm><tag>` back to `HEAD`, commit as `chore: enter <next> development`.
 
 `workflow_dispatch` on `publish.yml` runs the whole path without publishing; use it before a cut
 rather than discovering a broken release path with a version already spent.
