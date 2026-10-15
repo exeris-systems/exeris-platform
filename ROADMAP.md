@@ -90,7 +90,10 @@ This file tracks scope per milestone. Items marked `[ ]` are open; `[x]` shipped
 - [x] The kernel and SDK resolve from Maven Central; the build needs no sibling checkout and no
       credential
 
-## 0.5.0 — the mutation surface for live clients
+## 0.5.0 — the mutation surface for live clients (cut as `v0.5.0`)
+
+> **The first released cut.** `v0.5.0` carries 0.3.0 and 0.4.0 with it, neither of which was
+> tagged. Its first consumer is `exeris-ai-bridge`, through `exeris/previewMutation`.
 
 > Goal: a client that edits from what it just read — Studio, an agent through `exeris-ai-bridge`,
 > an IDE plugin — can apply and preview mutations over the LSP without a codegen baseline, and
