@@ -180,6 +180,58 @@ class LauncherIT {
 
     @Test
     @Timeout(60)
+    void theJarServesThePinnedRootOverStdioAndRefusesAnother(@TempDir Path dir) throws Exception {
+        Path workspace = Files.createDirectory(dir.resolve("workspace"));
+        Path other = Files.createDirectory(dir.resolve("other"));
+        Files.writeString(sourceIn(workspace), ORDER);
+        server = launch(dir, "--root", workspace.toString());
+
+        JsonNode refused = call(1, "initialize", initializeParams(other));
+        assertThat(refused.path("error").path("code").asInt()).isEqualTo(-32602);
+        assertThat(refused.path("error").path("data").path("retry").asBoolean(true)).isFalse();
+
+        ObjectNode namesNone = MAPPER.createObjectNode();
+        namesNone.set("capabilities", MAPPER.createObjectNode());
+        assertThat(call(2, "initialize", namesNone).has("result")).isTrue();
+        assertThat(call(3, "exeris/domains", MAPPER.createObjectNode()).path("result")).hasSize(1);
+
+        assertThat(shutDownCleanly()).isZero();
+    }
+
+    @Test
+    @Timeout(60)
+    void theJarPinsTheRootOfEveryWebSocketSession(@TempDir Path dir) throws Exception {
+        Path workspace = Files.createDirectory(dir.resolve("workspace"));
+        Path other = Files.createDirectory(dir.resolve("other"));
+        Files.writeString(sourceIn(workspace), ORDER);
+        Files.writeString(sourceIn(other), ORDER);
+        int port = freePort();
+        server = launch(dir, "--websocket", "--port", String.valueOf(port), "--root", workspace.toString());
+        awaitListening(server);
+
+        try (JarWsClient elsewhere = JarWsClient.connect(port, null)) {
+            JsonNode refused = elsewhere.call(1, "initialize", initializeParams(other));
+            assertThat(refused.path("error").path("code").asInt()).isEqualTo(-32602);
+        }
+        try (JarWsClient pinned = JarWsClient.connect(port, null)) {
+            assertThat(pinned.call(1, "initialize", initializeParams(workspace)).has("result")).isTrue();
+            assertThat(pinned.call(2, "exeris/domains", MAPPER.createObjectNode()).path("result")).hasSize(1);
+        }
+    }
+
+    @Test
+    @Timeout(60)
+    void aRootThatIsNoDirectoryIsRefusedAtStartup(@TempDir Path dir) throws Exception {
+        server = launch(dir, ProcessBuilder.Redirect.PIPE, "--root", dir.resolve("missing").toString());
+
+        assertThat(server.waitFor(30, TimeUnit.SECONDS)).as("the launcher exits instead of serving").isTrue();
+        assertThat(server.exitValue()).isEqualTo(2);
+        String stderr = new String(server.getErrorStream().readAllBytes(), StandardCharsets.UTF_8);
+        assertThat(stderr).contains("--root does not exist");
+    }
+
+    @Test
+    @Timeout(60)
     void theDefaultOriginAllowlistAdmitsTheStudioDevServerOnly(@TempDir Path workspace) throws Exception {
         Files.writeString(sourceIn(workspace), ORDER);
         int port = freePort();

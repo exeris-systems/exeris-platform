@@ -4,7 +4,10 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import eu.exeris.platform.lsp.LauncherOptions.Transport;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 /** Covers every branch of the launcher's command line options. */
 class LauncherOptionsTest {
@@ -145,5 +148,49 @@ class LauncherOptionsTest {
                     .isInstanceOf(IllegalArgumentException.class)
                     .hasMessageContaining("out of range");
         }
+    }
+
+    @Test
+    void noRootLeavesTheRootToTheClient() {
+        assertThat(LauncherOptions.parse(new String[] {}).root()).isNull();
+    }
+
+    @Test
+    void rootIsPinnedOnEitherTransportAndNamesNoTransport(@TempDir Path workspace) throws Exception {
+        LauncherOptions stdio = LauncherOptions.parse(new String[] {"--root", workspace.toString()});
+        assertThat(stdio.transport()).isEqualTo(Transport.STDIO);
+        assertThat(stdio.root()).isEqualTo(workspace.toRealPath());
+
+        LauncherOptions websocket = LauncherOptions.parse(
+                new String[] {"--websocket", "--root", workspace.toString()});
+        assertThat(websocket.transport()).isEqualTo(Transport.WEBSOCKET);
+        assertThat(websocket.root()).isEqualTo(workspace.toRealPath());
+    }
+
+    @Test
+    void rootIsHeldAsTheRealPathItResolvesTo(@TempDir Path dir) throws Exception {
+        Path workspace = Files.createDirectory(dir.resolve("workspace"));
+        Path link = Files.createSymbolicLink(dir.resolve("link"), workspace);
+
+        assertThat(LauncherOptions.parse(new String[] {"--root", link.toString()}).root())
+                .isEqualTo(workspace.toRealPath());
+        assertThat(LauncherOptions.parse(
+                new String[] {"--root", workspace.resolve("..").resolve("workspace").toString()}).root())
+                .isEqualTo(workspace.toRealPath());
+    }
+
+    @Test
+    void aRootThatIsNoDirectoryIsRefused(@TempDir Path dir) throws Exception {
+        Path file = Files.writeString(dir.resolve("Order.java"), "class Order {}");
+
+        assertThatThrownBy(() -> LauncherOptions.parse(new String[] {"--root", dir.resolve("missing").toString()}))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("--root does not exist");
+        assertThatThrownBy(() -> LauncherOptions.parse(new String[] {"--root", file.toString()}))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("--root is not a directory");
+        assertThatThrownBy(() -> LauncherOptions.parse(new String[] {"--root"}))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("requires a value");
     }
 }

@@ -40,6 +40,7 @@ import org.eclipse.lsp4j.TextDocumentSyncOptions;
 import org.eclipse.lsp4j.WorkspaceClientCapabilities;
 import org.eclipse.lsp4j.jsonrpc.Launcher;
 import org.eclipse.lsp4j.jsonrpc.ResponseErrorException;
+import org.eclipse.lsp4j.jsonrpc.messages.ResponseErrorCode;
 import org.eclipse.lsp4j.services.LanguageClient;
 import org.eclipse.lsp4j.services.LanguageServer;
 import org.junit.jupiter.api.AfterEach;
@@ -297,6 +298,68 @@ class ExerisLanguageServerTest {
         server.initialized(new InitializedParams());
 
         assertThat(recordingClient.registrations).isEmpty();
+    }
+
+    @Test
+    @Timeout(10)
+    void aPinnedRootServesAClientThatNamesNone(@TempDir Path workspace) throws Exception {
+        Files.writeString(workspace.resolve("Account.java"), ACCOUNT_SOURCE);
+        ServerApi remote = connect(new ExerisLanguageServer(status -> { }, workspace.toRealPath()));
+
+        remote.initialize(new InitializeParams()).get(5, TimeUnit.SECONDS);
+
+        assertThat(remote.domains().get(5, TimeUnit.SECONDS))
+                .singleElement()
+                .satisfies(d -> assertThat(d.qualifiedName()).isEqualTo("com.example.bank.Account"));
+    }
+
+    @Test
+    @Timeout(10)
+    @SuppressWarnings("deprecation") // rootUri is deprecated in LSP but the path we must support
+    void aPinnedRootServesAClientThatNamesItThroughALink(@TempDir Path dir) throws Exception {
+        Path workspace = Files.createDirectory(dir.resolve("workspace"));
+        Files.writeString(workspace.resolve("Account.java"), ACCOUNT_SOURCE);
+        Path link = Files.createSymbolicLink(dir.resolve("link"), workspace);
+        ServerApi remote = connect(new ExerisLanguageServer(status -> { }, workspace.toRealPath()));
+
+        InitializeParams params = new InitializeParams();
+        params.setRootUri(link.toUri().toString());
+        remote.initialize(params).get(5, TimeUnit.SECONDS);
+
+        assertThat(remote.domains().get(5, TimeUnit.SECONDS)).hasSize(1);
+    }
+
+    @Test
+    @Timeout(10)
+    @SuppressWarnings("deprecation") // rootUri is deprecated in LSP but the path we must support
+    void aPinnedRootRefusesAClientThatNamesAnother(@TempDir Path dir) throws Exception {
+        Path pinned = Files.createDirectory(dir.resolve("pinned"));
+        Path other = Files.createDirectory(dir.resolve("other"));
+        Files.writeString(other.resolve("Account.java"), ACCOUNT_SOURCE);
+        Path pinnedReal = pinned.toRealPath();
+        ServerApi remote = connect(new ExerisLanguageServer(status -> { }, pinnedReal));
+
+        for (String requested : new String[] {other.toUri().toString(), "untitled:workspace"}) {
+            InitializeParams params = new InitializeParams();
+            params.setRootUri(requested);
+            assertThatThrownBy(() -> remote.initialize(params).get(5, TimeUnit.SECONDS))
+                    .as("rootUri %s", requested)
+                    .isInstanceOf(ExecutionException.class)
+                    .cause()
+                    .isInstanceOfSatisfying(ResponseErrorException.class, refused -> {
+                        assertThat(refused.getResponseError().getCode())
+                                .isEqualTo(ResponseErrorCode.InvalidParams.getValue());
+                        assertThat(refused.getResponseError().getMessage())
+                                .contains("pinned to " + pinnedReal)
+                                .contains(requested);
+                    });
+        }
+
+        // A refused initialize leaves the session uninitialized, so nothing under the other root
+        // is ever read.
+        assertThatThrownBy(() -> remote.domains().get(5, TimeUnit.SECONDS))
+                .isInstanceOf(ExecutionException.class)
+                .hasCauseInstanceOf(ResponseErrorException.class);
     }
 
     private static ClientCapabilities clientCapabilitiesWithDynamicWatchers(boolean dynamic) {

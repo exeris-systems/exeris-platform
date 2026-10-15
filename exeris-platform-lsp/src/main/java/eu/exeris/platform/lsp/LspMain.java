@@ -40,13 +40,14 @@ public final class LspMain {
             return;
         }
         switch (options.transport()) {
-            case STDIO -> runStdio();
+            case STDIO -> runStdio(options);
             case WEBSOCKET -> runWebSocket(options);
         }
     }
 
-    private static void runStdio() throws InterruptedException, ExecutionException {
-        ExerisLanguageServer server = new ExerisLanguageServer();
+    private static void runStdio(LauncherOptions options)
+            throws InterruptedException, ExecutionException {
+        ExerisLanguageServer server = new ExerisLanguageServer(System::exit, options.root());
         Launcher<LanguageClient> launcher =
                 LSPLauncher.createServerLauncher(server, System.in, System.out);
         server.connect(launcher.getRemoteProxy());
@@ -72,7 +73,7 @@ public final class LspMain {
         WebSocketConfig config = WebSocketConfig.defaultServer(
                 options.host(), options.port(), options.allowedOrigins());
         WebSocketServerEngine engine = provider.createServerEngine(config);
-        engine.setHandler(new LspWebSocketConnectionHandler());
+        engine.setHandler(new LspWebSocketConnectionHandler(options.root()));
         engine.start();
 
         System.out.printf("Exeris LSP WebSocket listening on ws://%s:%d/lsp%n", options.host(), engine.boundPort());

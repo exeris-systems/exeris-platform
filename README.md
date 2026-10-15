@@ -107,6 +107,23 @@ are attached to the [GitHub release](https://github.com/exeris-systems/exeris-pl
 and published to GitHub Packages under classifier `standalone`. Fetch it from Packages
 with `-Dtransitive=false`: everything it runs on is inside the jar.
 
+**Pinning the workspace root.** Without options, each session indexes, and `exeris/applyMutation`
+writes under, the root its client names in `initialize` (`rootUri`, else the first
+`workspaceFolders` entry). `--root <dir>` fixes that root when the server starts, on either
+transport:
+
+- an `initialize` that names no root is served the pinned one;
+- one that names the same directory is served, compared as real paths, so a symbolic link to it
+  is the same root;
+- one that names any other root is refused with `InvalidParams` (`-32602`) and `retry: false`,
+  and that session reads nothing.
+
+A `--root` that is not an existing directory exits with status 2.
+
+```bash
+java -jar exeris-platform-lsp-<version>-standalone.jar --root /path/to/project
+```
+
 **WebSocket (Studio).** `--websocket` serves the same JSON-RPC surface over a WebSocket at
 `ws://<host>:<port>/lsp`, one language server per connection, on the kernel's own WebSocket
 server (ADR-084, `preview` at kernel 0.12):

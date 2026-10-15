@@ -1,9 +1,13 @@
 package eu.exeris.platform.lsp;
 
+import java.io.IOException;
 import java.net.InetAddress;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.UnknownHostException;
+import java.nio.file.Files;
+import java.nio.file.InvalidPathException;
+import java.nio.file.Path;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -26,14 +30,22 @@ import java.util.Locale;
  * front end is listed with {@code --allowed-origin}, which replaces the default rather than adding
  * to it, so the effective set is always exactly what the command line shows.
  *
+ * <p><b>The workspace root can be pinned.</b> Without {@code --root}, every session indexes, and
+ * {@code exeris/applyMutation} writes under, whatever root its client names in {@code initialize}.
+ * With it, the root is fixed when the server starts, on either transport, and a session whose
+ * client names another root is refused (see {@link ExerisLanguageServer}). It is held as a real
+ * path, so a symbolic link or a {@code ..} segment names the directory it resolves to.
+ *
  * @param transport      which wire to serve (STDIO or WEBSOCKET)
  * @param host           interface to bind, WebSocket only
  * @param port           port to bind, WebSocket only
  * @param allowedOrigins browser origins admitted by the WebSocket handshake, WebSocket only
  * @param allowRemote    whether a non-loopback {@code host} was explicitly opted into
+ * @param root           the pinned workspace root as a real path, or {@code null} when the client
+ *                       names it
  */
 public record LauncherOptions(Transport transport, String host, int port, List<String> allowedOrigins,
-                              boolean allowRemote) {
+                              boolean allowRemote, Path root) {
 
     public enum Transport { STDIO, WEBSOCKET }
 
@@ -54,6 +66,7 @@ public record LauncherOptions(Transport transport, String host, int port, List<S
         int port = DEFAULT_PORT;
         List<String> origins = new ArrayList<>();
         boolean allowRemote = false;
+        Path root = null;
         boolean explicitTransport = false;
         boolean websocketOptionSeen = false;
 
@@ -85,6 +98,7 @@ public record LauncherOptions(Transport transport, String host, int port, List<S
                     allowRemote = true;
                     websocketOptionSeen = true;
                 }
+                case "--root" -> root = parseRoot(requireValue(remaining, "--root"));
                 default -> throw new IllegalArgumentException("unknown option: " + option);
             }
         }
@@ -99,7 +113,7 @@ public record LauncherOptions(Transport transport, String host, int port, List<S
         }
 
         LauncherOptions options = new LauncherOptions(transport, host, port,
-                origins.isEmpty() ? DEFAULT_ALLOWED_ORIGINS : origins, allowRemote);
+                origins.isEmpty() ? DEFAULT_ALLOWED_ORIGINS : origins, allowRemote, root);
         if (options.transport() == Transport.WEBSOCKET && options.bindsBeyondLoopback() && !allowRemote) {
             throw new IllegalArgumentException("--host " + host + " is not a loopback address; the "
                     + "WebSocket endpoint is unauthenticated and exposes exeris/applyMutation, so "
@@ -126,6 +140,19 @@ public record LauncherOptions(Transport transport, String host, int port, List<S
             throw new IllegalArgumentException("--port out of range (1-65535): " + parsed);
         }
         return parsed;
+    }
+
+    private static Path parseRoot(String raw) {
+        Path real;
+        try {
+            real = Path.of(raw).toRealPath();
+        } catch (IOException | InvalidPathException _) {
+            throw new IllegalArgumentException("--root does not exist: " + raw);
+        }
+        if (!Files.isDirectory(real)) {
+            throw new IllegalArgumentException("--root is not a directory: " + raw);
+        }
+        return real;
     }
 
     /**
