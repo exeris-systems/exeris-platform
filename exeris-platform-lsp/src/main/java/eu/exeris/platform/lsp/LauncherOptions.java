@@ -47,19 +47,38 @@ import java.util.Locale;
 public record LauncherOptions(Transport transport, String host, int port, List<String> allowedOrigins,
                               boolean allowRemote, Path root) {
 
-    public enum Transport { STDIO, WEBSOCKET }
+    /** The wire a launched server speaks JSON-RPC over. */
+    public enum Transport {
+        /** Standard input and output, the default and what every LSP client consumes. */
+        STDIO,
+        /** A WebSocket endpoint at {@code ws://<host>:<port>/lsp}, one server per connection. */
+        WEBSOCKET
+    }
 
+    /** The interface a WebSocket server binds when {@code --host} is not given: loopback only. */
     public static final String DEFAULT_HOST = "127.0.0.1";
+
+    /** The port a WebSocket server binds without {@code --port}, and where Studio connects. */
     public static final int DEFAULT_PORT = 5007;
 
     /** The Studio dev server ({@code ng serve}, port 4200) under both loopback spellings. */
     public static final List<String> DEFAULT_ALLOWED_ORIGINS =
             List.of("http://localhost:4200", "http://127.0.0.1:4200");
 
+    /** Holds {@code allowedOrigins} as an unmodifiable copy, so parsed options never change. */
     public LauncherOptions {
         allowedOrigins = List.copyOf(allowedOrigins);
     }
 
+    /**
+     * Parses the launcher's command line.
+     *
+     * @param args the arguments {@link LspMain#main} received
+     * @return the options they name, with defaults for every option not given
+     * @throws IllegalArgumentException when an option is unknown, lacks its value, has an invalid
+     *         value, belongs to the other transport, or binds beyond loopback without
+     *         {@code --allow-remote}
+     */
     public static LauncherOptions parse(String[] args) {
         Transport transport = Transport.STDIO;
         String host = DEFAULT_HOST;
@@ -180,6 +199,12 @@ public record LauncherOptions(Transport transport, String host, int port, List<S
         return raw;
     }
 
+    /**
+     * Whether {@code host} names an interface other than loopback. A host that does not resolve
+     * counts as beyond loopback, so an unresolvable name is never bound without consent.
+     *
+     * @return {@code true} when binding {@code host} would expose the endpoint beyond this machine
+     */
     public boolean bindsBeyondLoopback() {
         try {
             return !InetAddress.getByName(host).isLoopbackAddress();

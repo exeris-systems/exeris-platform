@@ -28,6 +28,10 @@ public final class LspMain {
      * The launcher's console contract: a parse error goes to stderr with exit code 2, and the
      * WebSocket mode announces its bound {@code ws://} URL on stdout for whatever started it. On
      * stdio, stdout is the protocol stream and nothing else is written to it.
+     *
+     * @param args the launcher options {@link LauncherOptions#parse} accepts
+     * @throws InterruptedException when the thread serving the session is interrupted
+     * @throws ExecutionException   when the stdio listener ends with a failure
      */
     @SuppressWarnings("java:S106")
     public static void main(String[] args) throws InterruptedException, ExecutionException {
