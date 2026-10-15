@@ -58,7 +58,9 @@ P6. **The standalone launcher is a consumer contract** (`standalone-launcher-con
     `maven.compiler.release` above the kernel's (`jdk-baseline.md`) → `[HARD BLOCK]`.
 
 P7. **Release and distribution** (`release-and-distribution.md`). A workflow that publishes on a
-    push to `main`, or a release version committed on `main` → `[HARD BLOCK]`. A Maven Central
+    push to `main`, or a release version committed on `main` by anything other than a
+    `release(<x.y.z>): cut <x.y.z>` pull request → `[HARD BLOCK]`. A cut sets the reactor to
+    `<x.y.z>` and `<scm><tag>` to `v<x.y.z>`, and carries no other code change. A Maven Central
     publication path wired before the stack ahead of this repository is on Central → `[CONTRACT]`.
 
 ## Where this does not apply, and what it costs

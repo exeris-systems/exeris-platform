@@ -73,7 +73,7 @@
         deliberately NOT stubbed here, because a half-built `release` profile is a profile that
         uploads unsigned artifacts to an immutable repository.
 
-        When it is wired it rides the same trigger everything else does: a release is a TAG. Both
+        When it is wired it rides the same trigger everything else does: only a TAG publishes. Both
         registries are fed by one cut, so a version can never exist on one and not the other. See
         .github/workflows/publish.yml.
     -->
